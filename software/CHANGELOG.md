@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.leiden-clustering.software
 
+## 1.1.0
+
+### Minor Changes
+
+- 8e21ee4: Block first version.
+
 ## 1.3.0
 
 ### Minor Changes
