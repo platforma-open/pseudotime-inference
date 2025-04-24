@@ -1,0 +1,52 @@
+{
+  "name": "@platforma-open/milaboratories.pseudotime-inference",
+  "version": "1.0.0",
+  "scripts": {
+    "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json,vue}\"",
+    "build": "rm -rf ./block-pack && block-tools pack",
+    "mark-stable": "block-tools mark-stable -r 's3://milab-euce1-prod-pkgs-s3-block-registry/pub/releases/?region=eu-central-1'",
+    "prepublishOnly": "block-tools pack && block-tools publish -r 's3://milab-euce1-prod-pkgs-s3-block-registry/pub/releases/?region=eu-central-1'",
+    "do-pack": "rm -f *.tgz && block-tools pack && pnpm pack && mv *.tgz package.tgz"
+  },
+  "files": [
+    "index.d.ts",
+    "index.js"
+  ],
+  "dependencies": {
+    "@platforma-sdk/model": "catalog:",
+    "@platforma-open/milaboratories.pseudotime-inference.workflow": "workspace:*",
+    "@platforma-open/milaboratories.pseudotime-inference.model": "workspace:*",
+    "@platforma-open/milaboratories.pseudotime-inference.ui": "workspace:*"
+  },
+  "block": {
+    "components": {
+      "workflow": "@platforma-open/milaboratories.pseudotime-inference.workflow/dist/tengo/tpl/main.plj.gz",
+      "model": "@platforma-open/milaboratories.pseudotime-inference.model/dist/model.json",
+      "ui": "@platforma-open/milaboratories.pseudotime-inference.ui/dist"
+    },
+    "meta": {
+      "title": "Pseudotime Inference",
+      "logo": "file:../logos/block-logo.png",
+      "url": "https://github.com/platforma-open/milaboratories.pseudotime-inference",
+      "support": "mailto:support@milaboratories.com",
+      "description": "Calculates a pseudotime trajectory from single cell RNA-seq data.",
+      "longDescription": "file:../docs/description.md",
+      "changelog": "file:../CHANGELOG.md",
+      "tags": [
+        "RNA-seq",
+        "downstream",
+        "single-cell"
+      ],
+      "organization": {
+        "name": "MiLaboratories Inc",
+        "url": "https://milaboratories.com/",
+        "logo": "file:../logos/organization-logo.png"
+      },
+      "marketplaceRanking": 12100
+    }
+  },
+  "devDependencies": {
+    "@platforma-sdk/block-tools": "catalog:"
+  },
+  "packageManager": "pnpm@9.12.0"
+}
