@@ -38,20 +38,26 @@ wf.body(func(args) {
 		run()
 
 	pseudotimeScoresImportParams := pfPseudotimeConv.getColumns(blockId, inputSpec)
-	pseudotimePf := xsv.importFile(pseudotimeInference.getFile("dpt_pseudotime.csv"), "csv", pseudotimeScoresImportParams)
+	pseudotimePf := xsv.importFile(pseudotimeInference.getFile("dpt_pseudotime.csv"), "csv", pseudotimeScoresImportParams, {splitDataAndSpec: true})
 
-	exports := {
-		pseudotimeScores : {
-            spec: pseudotimePf["pseudotimedpt.spec"],
-            data: pseudotimePf["pseudotimedpt.data"]
-            }
-    }
+	trace := pSpec.makeTrace(inputSpec,
+		{type: "milaboratories.pseudotime-inference", id: blockId, importance: 50, label: "Pseudotime Inference"}
+	)
+
+	// Build pseudotime scores pFrame with trace injection
+	pseudotimeOutputPf := pframes.pFrameBuilder()
+	for k, v in pseudotimePf {
+		pseudotimeOutputPf.add(k, trace.inject(v.spec), v.data)
+	}
+	pseudotimeOutputPf = pseudotimeOutputPf.build()
 
 	return {
 		outputs: {
-			pseudotimeScores: pframes.exportFrame(pseudotimePf)
+			pseudotimeScores: pframes.exportFrame(pseudotimeOutputPf)
 		},
-		exports: exports
+		exports: {
+			pf: pseudotimeOutputPf
+		}
 	}
 })
 
