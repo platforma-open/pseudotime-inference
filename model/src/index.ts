@@ -26,10 +26,15 @@ export const model = BlockModel.create()
 
   .withArgs<BlockArgs>({})
 
+  .argsValid((ctx) => {
+    return ctx.args.principalComponentsRef !== undefined && ctx.args.clustersRef !== undefined;
+  })
+
   .withUiState<UiState>({
     graphStateUMAP: {
       title: 'UMAP',
       template: 'dots',
+      currentTab: 'settings',
     },
     graphStateTSNE: {
       title: 'tSNE',
@@ -139,8 +144,7 @@ export const model = BlockModel.create()
   .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
 
   .sections((_ctx) => ([
-    { type: 'link', href: '/', label: 'Main' },
-    { type: 'link', href: '/umap', label: 'UMAP' },
+    { type: 'link', href: '/', label: 'UMAP' },
     { type: 'link', href: '/tsne', label: 'tSNE' },
     { type: 'link', href: '/violin', label: 'Violin plot' },
   ]))
