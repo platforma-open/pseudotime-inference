@@ -103,7 +103,6 @@ function setInput(inputRef?: PlRef) {
           label="Select clusters"
           clearable
           required
-          @update:model-value="setInput"
         />
       </template>
     </GraphMaker>
