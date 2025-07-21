@@ -1,17 +1,17 @@
 <script setup lang="ts">
+import type { PredefinedGraphOption } from '@milaboratories/graph-maker';
+import { GraphMaker } from '@milaboratories/graph-maker';
 import '@milaboratories/graph-maker/styles';
-import { PlBlockPage, PlDropdownRef } from '@platforma-sdk/ui-vue';
-import { useApp } from '../app';
 import type { PlRef } from '@platforma-sdk/model';
 import { plRefsEqual } from '@platforma-sdk/model';
-import type { GraphMakerProps } from '@milaboratories/graph-maker';
-import { GraphMaker } from '@milaboratories/graph-maker';
+import { PlBlockPage, PlDropdownRef } from '@platforma-sdk/ui-vue';
 import { ref } from 'vue';
+import { useApp } from '../app';
 
 const app = useApp();
 const settingsOpen = ref(true);
 
-const defaultOptions: GraphMakerProps['defaultOptions'] = [
+const defaultOptions: PredefinedGraphOption<'scatterplot-umap'>[] = [
   {
     inputName: 'x',
     selectedSource: {
