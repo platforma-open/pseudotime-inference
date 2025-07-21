@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.pseudotime-inference.ui
 
+## 1.3.0
+
+### Minor Changes
+
+- fc73aed: Update SDK packages and minor plot fixes
+
 ## 1.2.0
 
 ### Minor Changes
