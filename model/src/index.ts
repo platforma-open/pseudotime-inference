@@ -148,6 +148,31 @@ export const model = BlockModel.create()
     );
   })
 
+  .output('violinPcols', (ctx) => {
+    // Get specifically the clusters pcol selected by user in settings
+    const clusterAnchor = ctx.args.clustersRef;
+    if (clusterAnchor === undefined)
+      return undefined;
+    const clusterPcol = ctx.resultPool.getPColumnByRef(clusterAnchor);
+    if (clusterPcol === undefined)
+      return undefined;
+
+    const upstream
+      = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+
+    if (upstream === undefined) {
+      return undefined;
+    }
+
+    return [clusterPcol, ...upstream].map(
+      (c) =>
+        ({
+          columnId: c.id,
+          spec: c.spec,
+        } satisfies PColumnIdAndSpec),
+    );
+  })
+
   .output('violinPf', (ctx): PFrameHandle | undefined => {
     const pCols
       = ctx.resultPool
