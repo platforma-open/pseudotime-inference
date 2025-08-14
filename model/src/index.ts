@@ -1,6 +1,7 @@
 import type { GraphMakerState } from '@milaboratories/graph-maker';
 import type {
   InferOutputsType,
+  PColumnIdAndSpec,
   PFrameHandle,
   PlRef } from '@platforma-sdk/model';
 import {
@@ -119,6 +120,59 @@ export const model = BlockModel.create()
     return ctx.createPFrame([...pCols, ...upstream]);
   })
 
+  .output('plotPcols', (ctx) => {
+    const pCols
+      = ctx.resultPool
+        .getData()
+        .entries.map((c) => c.obj)
+        .filter(isPColumn)
+        .filter((col) => {
+          return (col.spec.name.slice(0, -1) === 'pl7.app/rna-seq/tsne'
+            || col.spec.name.slice(0, -1) === 'pl7.app/rna-seq/umap');
+        });
+
+    // enriching with leiden clusters data
+    const upstream
+      = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+
+    if (upstream === undefined) {
+      return undefined;
+    }
+
+    return [...pCols, ...upstream].map(
+      (c) =>
+        ({
+          columnId: c.id,
+          spec: c.spec,
+        } satisfies PColumnIdAndSpec),
+    );
+  })
+
+  .output('violinPcols', (ctx) => {
+    // Get specifically the clusters pcol selected by user in settings
+    const clusterAnchor = ctx.args.clustersRef;
+    if (clusterAnchor === undefined)
+      return undefined;
+    const clusterPcol = ctx.resultPool.getPColumnByRef(clusterAnchor);
+    if (clusterPcol === undefined)
+      return undefined;
+
+    const upstream
+      = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+
+    if (upstream === undefined) {
+      return undefined;
+    }
+
+    return [clusterPcol, ...upstream].map(
+      (c) =>
+        ({
+          columnId: c.id,
+          spec: c.spec,
+        } satisfies PColumnIdAndSpec),
+    );
+  })
+
   .output('violinPf', (ctx): PFrameHandle | undefined => {
     const pCols
       = ctx.resultPool
@@ -144,8 +198,7 @@ export const model = BlockModel.create()
   .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
 
   .sections((_ctx) => ([
-    { type: 'link', href: '/', label: 'UMAP' },
-    { type: 'link', href: '/tsne', label: 'tSNE' },
+    { type: 'link', href: '/', label: 'Main' },
     { type: 'link', href: '/violin', label: 'Violin plot' },
   ]))
 
