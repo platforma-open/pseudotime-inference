@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.pseudotime-inference.ui
 
+## 1.4.0
+
+### Minor Changes
+
+- 18bd3b0: Migrate to PlTabs to switch between UMAP and tSNE, make violin plot default options more specific
+
+### Patch Changes
+
+- Updated dependencies [18bd3b0]
+  - @platforma-open/milaboratories.pseudotime-inference.model@1.3.0
+
 ## 1.3.0
 
 ### Minor Changes
