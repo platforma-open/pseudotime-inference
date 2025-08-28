@@ -3,7 +3,8 @@ import type {
   InferOutputsType,
   PColumnIdAndSpec,
   PFrameHandle,
-  PlRef } from '@platforma-sdk/model';
+  PlRef,
+} from '@platforma-sdk/model';
 import {
   BlockModel,
   isPColumn,
@@ -50,7 +51,7 @@ export const model = BlockModel.create()
   .output('embeddingOptions', (ctx) =>
     ctx.resultPool.getOptions((spec) => isPColumnSpec(spec)
       && spec.name === 'pl7.app/rna-seq/pcvalue'
-    , { includeNativeLabel: true, addLabelAsSuffix: true }),
+    , { includeNativeLabel: false, addLabelAsSuffix: true }),
   )
 
   .output('clusterOptions', (ctx) =>
