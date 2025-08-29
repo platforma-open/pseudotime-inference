@@ -21,11 +21,17 @@ wf.body(func(args) {
 	clusters := args.resolvedClusters
 	inputSpec := embeddings.spec
 
-	csvEmbeddings := xsv.exportFrame([embeddings], "csv", {})
-	csvClusters := xsv.exportFrame([clusters], "csv", {})
+	// Set default conversion memory and CPU
+	defaultConvMem := "16GiB" // @TODO: set based on the size of the input
+	defaultConvCpu := 1       // @TODO: set based on the size of the input
+
+	csvEmbeddings := xsv.exportFrame([embeddings], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
+	csvClusters := xsv.exportFrame([clusters], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
 
 	pseudotimeInference := exec.builder().
 		software(assets.importSoftware("@platforma-open/milaboratories.pseudotime-inference.software:pseudotime-dpt")).
+		mem("16GiB").
+		cpu(1).
 		addFile("embeddings.csv", csvEmbeddings).
 		addFile("clusters.csv", csvClusters).
 		arg("--pca_csv").arg("embeddings.csv").
@@ -38,7 +44,7 @@ wf.body(func(args) {
 		run()
 
 	pseudotimeScoresImportParams := pfPseudotimeConv.getColumns(blockId, inputSpec)
-	pseudotimePf := xsv.importFile(pseudotimeInference.getFile("dpt_pseudotime.csv"), "csv", pseudotimeScoresImportParams, {splitDataAndSpec: true})
+	pseudotimePf := xsv.importFile(pseudotimeInference.getFile("dpt_pseudotime.csv"), "csv", pseudotimeScoresImportParams, {splitDataAndSpec: true, mem: defaultConvMem, cpu: defaultConvCpu})
 
 	trace := pSpec.makeTrace(inputSpec,
 		{type: "milaboratories.pseudotime-inference", id: blockId, importance: 60, label: "Pseudotime Inference"}
