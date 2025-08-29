@@ -47,7 +47,7 @@ wf.body(func(args) {
 	pseudotimePf := xsv.importFile(pseudotimeInference.getFile("dpt_pseudotime.csv"), "csv", pseudotimeScoresImportParams, {splitDataAndSpec: true, mem: defaultConvMem, cpu: defaultConvCpu})
 
 	trace := pSpec.makeTrace(inputSpec,
-		{type: "milaboratories.pseudotime-inference", id: blockId, importance: 40, label: "Pseudotime Inference"}
+		{type: "milaboratories.pseudotime-inference", id: blockId, importance: 60, label: "Pseudotime Inference"}
 	)
 
 	// Build pseudotime scores pFrame with trace injection
