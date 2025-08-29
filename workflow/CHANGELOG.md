@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.pseudotime-inference.workflow
 
+## 1.4.0
+
+### Minor Changes
+
+- d770863: Add batch support
+
 ## 1.3.3
 
 ### Patch Changes

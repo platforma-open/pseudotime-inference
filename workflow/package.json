@@ -1,6 +1,6 @@
 {
   "name": "@platforma-open/milaboratories.pseudotime-inference.workflow",
-  "version": "1.3.3",
+  "version": "1.4.0",
   "type": "module",
   "description": "Block Workflow",
   "scripts": {
