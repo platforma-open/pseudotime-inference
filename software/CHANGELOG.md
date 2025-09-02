@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.leiden-clustering.software
 
+## 1.2.2
+
+### Patch Changes
+
+- 1fcde8f: Full SDK update
+
 ## 1.2.1
 
 ### Patch Changes

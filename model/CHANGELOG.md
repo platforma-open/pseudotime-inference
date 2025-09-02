@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.pseudotime-inference.model
 
+## 1.3.2
+
+### Patch Changes
+
+- 1fcde8f: Full SDK update
+
 ## 1.3.1
 
 ### Patch Changes
