@@ -140,7 +140,16 @@ export const model = BlockModel.create()
       return undefined;
     }
 
-    return [...pCols, ...upstream].map(
+    // Return batch corrected UMAP/tSNE if present
+    let finalPcols = [];
+    const batchCorrected = pCols.filter((col) => col.spec.domain?.['pl7.app/rna-seq/batch-corrected'] === 'true');
+    if (batchCorrected.length !== 0) {
+      finalPcols = pCols.filter((col) => col.spec.domain?.['pl7.app/rna-seq/batch-corrected'] !== 'false');
+    } else {
+      finalPcols = pCols;
+    }
+
+    return [...finalPcols, ...upstream].map(
       (c) =>
         ({
           columnId: c.id,
