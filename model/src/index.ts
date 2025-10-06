@@ -19,8 +19,7 @@ export type UiState = {
 };
 
 export type BlockArgs = {
-  principalComponentsRef?: PlRef;
-  clustersRef?: PlRef;
+  clusterAnnotationRef?: PlRef;
   title?: string;
 };
 
@@ -29,7 +28,7 @@ export const model = BlockModel.create()
   .withArgs<BlockArgs>({})
 
   .argsValid((ctx) => {
-    return ctx.args.principalComponentsRef !== undefined && ctx.args.clustersRef !== undefined;
+    return ctx.args.clusterAnnotationRef !== undefined;
   })
 
   .withUiState<UiState>({
@@ -48,15 +47,10 @@ export const model = BlockModel.create()
     },
   })
 
-  .output('embeddingOptions', (ctx) =>
+  .output('clusterAnnotationOptions', (ctx) =>
     ctx.resultPool.getOptions((spec) => isPColumnSpec(spec)
-      && spec.name === 'pl7.app/rna-seq/pcvalue'
-    , { includeNativeLabel: false, addLabelAsSuffix: true }),
-  )
-
-  .output('clusterOptions', (ctx) =>
-    ctx.resultPool.getOptions((spec) => isPColumnSpec(spec)
-      && spec.name === 'pl7.app/rna-seq/leidencluster'
+      && (spec.name === 'pl7.app/rna-seq/leidencluster'
+        || spec.name === 'pl7.app/rna-seq/cellType')
     , { includeNativeLabel: true, addLabelAsSuffix: true }),
   )
 
@@ -151,7 +145,7 @@ export const model = BlockModel.create()
 
   .output('violinPcols', (ctx) => {
     // Get specifically the clusters pcol selected by user in settings
-    const clusterAnchor = ctx.args.clustersRef;
+    const clusterAnchor = ctx.args.clusterAnnotationRef;
     if (clusterAnchor === undefined)
       return undefined;
     const clusterPcol = ctx.resultPool.getPColumnByRef(clusterAnchor);
@@ -209,6 +203,6 @@ export const model = BlockModel.create()
       : 'Pseudotime Inference',
   )
 
-  .done(2);
+  .done();
 
 export type BlockOutputs = InferOutputsType<typeof model>;
