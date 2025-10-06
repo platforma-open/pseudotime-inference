@@ -1,5 +1,14 @@
 # @platforma-open/milaboratories.pseudotime-inference
 
+## 1.1.10
+
+### Patch Changes
+
+- Updated dependencies [db51889]
+  - @platforma-open/milaboratories.pseudotime-inference.workflow@1.5.0
+  - @platforma-open/milaboratories.pseudotime-inference.model@1.4.0
+  - @platforma-open/milaboratories.pseudotime-inference.ui@1.5.0
+
 ## 1.1.9
 
 ### Patch Changes

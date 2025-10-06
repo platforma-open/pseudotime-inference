@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.pseudotime-inference.ui
 
+## 1.5.0
+
+### Minor Changes
+
+- db51889: Reduce UI settings for better UX.
+
+### Patch Changes
+
+- Updated dependencies [db51889]
+  - @platforma-open/milaboratories.pseudotime-inference.model@1.4.0
+
 ## 1.4.2
 
 ### Patch Changes
