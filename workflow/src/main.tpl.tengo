@@ -4,29 +4,92 @@ assets:= import("@platforma-sdk/workflow-tengo:assets")
 xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
 pframes := import("@platforma-sdk/workflow-tengo:pframes")
 pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
+json := import("json")
 
 pfPseudotimeConv := import(":pf-pseudotime-conv")
 
 wf.prepare(func(args){
+	// Validate cluster annotation is provided
+	if is_undefined(args.clusterAnnotationRef) {
+		error("Cluster annotation is required")
+	}
+
+	// Create bundle builder for automatic PColumn discovery
+	bundleBuilder := wf.createPBundleBuilder()
+	bundleBuilder.ignoreMissingDomains() // Handle various data types
+	
+	// Add the cluster annotation as the main anchor
+	bundleBuilder.addAnchor("clusters", args.clusterAnnotationRef)
+	
+	// Add query for count matrix - we'll filter this in body based on trace analysis
+	bundleBuilder.addMulti({
+		name: "pl7.app/rna-seq/pcvalue"
+	}, "principalComponents")
+	
 	return {
-		resolvedInput: wf.resolve(args.principalComponentsRef, { errIfMissing: true }),
-		resolvedClusters: wf.resolve(args.clustersRef, { errIfMissing: true })
+		columns: bundleBuilder.build()
 	}
 })
 
 wf.body(func(args) {
-
+	// Extract block ID as string
 	blockId := wf.blockId().getDataAsJson()
-	embeddings := args.resolvedInput
-	clusters := args.resolvedClusters
-	inputSpec := embeddings.spec
+	
+	// Get the resolved cluster annotation
+	columns := args.columns
+	clusterAnnotation := columns.getColumn(args.clusterAnnotationRef)
+	clusterSpec := clusterAnnotation.spec
+	
+	if is_undefined(clusterSpec.annotations) {
+		error("Cluster annotation is missing required metadata.")
+	}
+	
+	clusterTraceAnnotation := clusterSpec.annotations["pl7.app/trace"]
+	if is_undefined(clusterTraceAnnotation) {
+		error("Cluster annotation is missing trace information.")
+	}
+	
+	clusterTrace := json.decode(clusterTraceAnnotation || "[]")
+	
+	// Extract PCA block ID from trace
+	pcaBlockId := undefined
+	for step in clusterTrace {
+		if !is_undefined(step) && !is_undefined(step.type) && (step.type == "milaboratories.pca" || step.type == "milaboratories.harmony-pca" || step.type == "milaboratories.dimensionality-reduction") {
+			if !is_undefined(step.id) {
+				pcaBlockId = step.id
+				break
+			}
+		}
+	}
+	
+	if pcaBlockId == undefined {
+		error("Could not find PCA step in cluster annotation trace.")
+	}
+	
+	// Find the matching principal components from the available ones
+	allPrincipalComponents := columns.getColumns("principalComponents")
+	principalComponents := undefined
+	
+	for pc in allPrincipalComponents {
+		if !is_undefined(pc.spec.domain) && 
+		   pc.spec.domain["pl7.app/blockId"] == pcaBlockId {
+			principalComponents = pc
+			break
+		}
+	}
+	
+	if is_undefined(principalComponents) {
+		error("No associated principal components found for the given cluster annotation.")
+	}
+
+	inputSpec := principalComponents.spec
 
 	// Set default conversion memory and CPU
 	defaultConvMem := "16GiB" // @TODO: set based on the size of the input
 	defaultConvCpu := 1       // @TODO: set based on the size of the input
 
-	csvEmbeddings := xsv.exportFrame([embeddings], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
-	csvClusters := xsv.exportFrame([clusters], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
+	csvEmbeddings := xsv.exportFrame([principalComponents], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
+	csvClusters := xsv.exportFrame([clusterAnnotation], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
 
 	pseudotimeInference := exec.builder().
 		software(assets.importSoftware("@platforma-open/milaboratories.pseudotime-inference.software:pseudotime-dpt")).

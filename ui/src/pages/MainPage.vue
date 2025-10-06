@@ -89,13 +89,6 @@ const graphState = computed({
 
 const pFrame = computed(() => data.currentTab === 'umap' ? app.model.outputs.UMAPPf : app.model.outputs.tSNEPf);
 
-function setInput(inputRef?: PlRef) {
-  app.model.args.principalComponentsRef = inputRef;
-  if (inputRef)
-    app.model.args.title = app.model.outputs.embeddingOptions?.find((o) => plRefsEqual(o.ref, inputRef))?.label;
-  else
-    app.model.args.title = undefined;
-}
 </script>
 
 <template>
@@ -112,19 +105,10 @@ function setInput(inputRef?: PlRef) {
       </template>
       <template #settingsSlot>
         <PlDropdownRef
-          v-model="app.model.args.principalComponentsRef"
-          :options="app.model.outputs.embeddingOptions"
+          v-model="app.model.args.clusterAnnotationRef"
+          :options="app.model.outputs.clusterAnnotationOptions"
           :style="{ width: '320px' }"
-          label="Select dataset"
-          clearable
-          required
-          @update:model-value="setInput"
-        />
-        <PlDropdownRef
-          v-model="app.model.args.clustersRef"
-          :options="app.model.outputs.clusterOptions"
-          :style="{ width: '320px' }"
-          label="Select clusters"
+          label="Cluster annotation"
           clearable
           required
         />
