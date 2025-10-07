@@ -21,6 +21,7 @@ export type UiState = {
 export type BlockArgs = {
   clusterAnnotationRef?: PlRef;
   title?: string;
+  rootCluster?: string;
 };
 
 export const model = BlockModel.create()
@@ -53,6 +54,13 @@ export const model = BlockModel.create()
         || spec.name === 'pl7.app/rna-seq/cellType')
     , { includeNativeLabel: true, addLabelAsSuffix: true }),
   )
+
+  .output('selectedClusterPf', (ctx) => {
+    if (ctx.args.clusterAnnotationRef === undefined) return undefined;
+    const pCols = ctx.resultPool.getPColumnByRef(ctx.args.clusterAnnotationRef);
+    if (pCols === undefined) return undefined;
+    return ctx.createPFrame([pCols]);
+  })
 
   .output('anchorSpec', (ctx) => {
     // return the Reference of the p-column selected as input dataset in Settings

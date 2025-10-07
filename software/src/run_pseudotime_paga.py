@@ -1,6 +1,7 @@
 import argparse
 import pandas as pd
 import scanpy as sc
+import numpy as np
 
 
 def _canon(s: str) -> str:
@@ -43,7 +44,7 @@ def _detect_pc_value_col(df: pd.DataFrame) -> str:
     raise KeyError("PCA CSV must contain 'Principal Component Value' or 'Principal Component Value - Harmony corrected'.")
 
 
-def run_dpt(pca_csv, cluster_csv, out_prefix="output", rev: str | None = None):
+def run_dpt(pca_csv, cluster_csv, out_prefix="output", rev: str | None = None, root_cluster: str | None = None):
     # Load PCA data
     print("📥 Reading PCA data...")
     pca_df = pd.read_csv(pca_csv)
@@ -92,24 +93,57 @@ def run_dpt(pca_csv, cluster_csv, out_prefix="output", rev: str | None = None):
     adata.obsm['X_pca'] = pca_matrix.loc[common_cells].values
     adata.obs['leiden'] = clust_df.loc[common_cells][leiden_column].astype(str).values
 
-    # Neighbors + DPT
+    # Neighbors
     print("📉 Computing neighbors...")
     sc.pp.neighbors(adata, use_rep='X_pca')
 
-    print("🧭 Selecting root cell...")
-    adata.uns['iroot'] = adata.obsm['X_pca'][:, 0].argmin()
+    # PAGA tree
+    print("⏳ Running PAGA pseudotime inference using Leiden clusters as groups...")
+    sc.tl.paga(adata, groups='leiden')
+    # We need the following command to create the PAGA graph  and save the node 
+    # positions in adata.uns['paga']['pos'] (needed to draw_graph)
+    _ = sc.pl.paga(adata, color='leiden', add_pos=True, show=False)
+    # Recompute the embedding using PAGA-initialization
+    print("📊 Drawing PAGA graph...")
+    sc.tl.draw_graph(adata, init_pos='paga')
+    # The positions of the PAGA nodes (one per cluster/group)
+    # adata.uns['paga']['pos']
 
+    # Root cell selection
+    print("🧭 Selecting root cell...")
+    # By default, the root cell is the one with the lowest PCA value for the first PC
+    # Get it from all cells
+    if root_cluster is None:
+        adata.uns['iroot'] = adata.obsm['X_pca'][:, 0].argmin()
+    # Otherwise, get it from the root cluster
+    else:
+        indices_in_cluster = np.flatnonzero(adata.obs['leiden'] == root_cluster)
+        pc1_in_cluster = adata.obsm['X_pca'][indices_in_cluster, 0]
+        adata.uns['iroot'] = indices_in_cluster[pc1_in_cluster.argmin()]
+
+    # Pseudotime calculation
     print("⏳ Running DPT pseudotime inference...")
+    # DPT uses the connectivity information from the PAGA graph if it exists
+    sc.tl.diffmap(adata)
     sc.tl.dpt(adata)
 
     # Split composite ID back into Sample / Cell Barcode
     print("💾 Saving output...")
     adata.obs[['Sample', 'Cell Barcode']] = pd.Series(adata.obs_names).str.split('|', expand=True).values
     output_df = adata.obs[['Sample', 'Cell Barcode', 'dpt_pseudotime']]
-    
+
+    # Store pseudotime data
     pseudotime_file = f"{out_prefix}_pseudotime.csv"
     output_df.to_csv(pseudotime_file, index=False)
     print(f"✅ Pseudotime CSV saved: {pseudotime_file}")
+
+    # Store PAGA graph
+    df_t = pd.DataFrame([])
+    df_t[['Sample', 'Cell Barcode']] = pd.Series(adata.obs_names).str.split('|', expand=True).values
+    df_t['UMAP1'] = adata.obsm['X_draw_graph_fr'][:, 0]
+    df_t['UMAP2'] = adata.obsm['X_draw_graph_fr'][:, 1]
+    df_t.to_csv(f"paga_graph.csv", index=False)
+    print(f"✅ PAGA graph CSV saved: paga_graph.csv")
 
 
 if __name__ == "__main__":
@@ -118,7 +152,8 @@ if __name__ == "__main__":
     parser.add_argument('--cluster_csv', required=True, help='CSV file with Leiden clusters.')
     parser.add_argument('--out_prefix', default='output', help='Prefix for output files.')
     parser.add_argument('--rev', required=False, help='Cache-busting revision token.')
+    parser.add_argument('--root_cluster', required=False, help='Root cluster to use for DPT.')
 
     args = parser.parse_args()
 
-    run_dpt(args.pca_csv, args.cluster_csv, args.out_prefix, args.rev)
+    run_dpt(args.pca_csv, args.cluster_csv, args.out_prefix, args.rev, args.root_cluster)
