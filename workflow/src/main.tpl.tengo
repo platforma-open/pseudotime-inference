@@ -7,7 +7,7 @@ pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
 json := import("json")
 
 pfPseudotimeConv := import(":pf-pseudotime-conv")
-pfUmapConv := import(":pf-umap-conv")
+pfPagaGraphConv := import(":pf-paga-graph-conv")
 
 wf.prepare(func(args){
 	// Validate cluster annotation is provided
@@ -115,8 +115,8 @@ wf.body(func(args) {
 
 	pseudotimeScoresImportParams := pfPseudotimeConv.getColumns(blockId, inputSpec)
 	pseudotimePf := xsv.importFile(pseudotimeInference.getFile("paga_pseudotime.csv"), "csv", pseudotimeScoresImportParams, {splitDataAndSpec: true, mem: defaultConvMem, cpu: defaultConvCpu})
-	umapImportParams := pfUmapConv.getColumns(blockId, inputSpec)
-	pagaGraphPf := xsv.importFile(pseudotimeInference.getFile("paga_graph.csv"), "csv", umapImportParams, {splitDataAndSpec: true, mem: defaultConvMem, cpu: defaultConvCpu})
+	pagaGraphImportParams := pfPagaGraphConv.getColumns(blockId, inputSpec)
+	pagaGraphPf := xsv.importFile(pseudotimeInference.getFile("paga_graph.csv"), "csv", pagaGraphImportParams, {mem: defaultConvMem, cpu: defaultConvCpu})
 
 	trace := pSpec.makeTrace(inputSpec,
 		{type: "milaboratories.pseudotime-inference", id: blockId, importance: 60, label: "Pseudotime Inference"}
@@ -131,7 +131,8 @@ wf.body(func(args) {
 
 	return {
 		outputs: {
-			pseudotimeScores: pframes.exportFrame(pseudotimeOutputPf)
+			pseudotimeScores: pframes.exportFrame(pseudotimeOutputPf),
+			pagaGraph: pframes.exportFrame(pagaGraphPf)
 		},
 		exports: {
 			pf: pseudotimeOutputPf

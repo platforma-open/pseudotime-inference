@@ -4,44 +4,42 @@ getColumns := func(blockId, inputSpec) {
   return {
     "axes": [
       {
-        "column": "SampleId",
+        "column": "Sample",
         "spec": inputSpec.axesSpec[0]
       },
       {
-        "column": "CellId",
+        "column": "Cell Barcode",
         "spec": inputSpec.axesSpec[1]
       }
       ],
     "columns": [
       {
-        "column": "UMAP1",
-        "id": "umap1",
+        "column": "PAGA1",
+        "id": "paga1",
         "allowNA": false,
         "spec": {
-          "name": "pl7.app/rna-seq/umap1",
+          "name": "pl7.app/rna-seq/graph1",
           "valueType": "Double",
           "domain": {
-            "pl7.app/blockId": blockId,
-            "pl7.app/rna-seq/paga-initialized": "true"
+            "pl7.app/blockId": blockId
           },
           "annotations": {
-            "pl7.app/label": "UMAP Dim1"
+            "pl7.app/label": "PAGA Dim1"
           }
         }
       },
       {
-        "column": "UMAP2",
-        "id": "umap2",
+        "column": "PAGA2",
+        "id": "paga2",
         "allowNA": false,
         "spec": {
-          "name": "pl7.app/rna-seq/umap2",
+          "name": "pl7.app/rna-seq/graph2",
           "valueType": "Double",
           "domain": {
-            "pl7.app/blockId": blockId,
-            "pl7.app/rna-seq/paga-initialized": "true"
+            "pl7.app/blockId": blockId
           },
           "annotations": {
-            "pl7.app/label": "UMAP Dim2"
+            "pl7.app/label": "PAGA Dim2"
           }
         }
       }

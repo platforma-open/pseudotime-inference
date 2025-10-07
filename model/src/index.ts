@@ -14,6 +14,7 @@ import {
 export type UiState = {
   graphStateUMAP: GraphMakerState;
   graphStateTSNE: GraphMakerState;
+  graphStatePAGA: GraphMakerState;
   graphStateViolin: GraphMakerState;
   anchorColumn?: PlRef;
 };
@@ -40,6 +41,10 @@ export const model = BlockModel.create()
     },
     graphStateTSNE: {
       title: 'tSNE',
+      template: 'dots',
+    },
+    graphStatePAGA: {
+      title: 'PAGA graph',
       template: 'dots',
     },
     graphStateViolin: {
@@ -123,6 +128,21 @@ export const model = BlockModel.create()
     return ctx.createPFrame([...pCols, ...upstream]);
   })
 
+  .output('PAGAPf', (ctx): PFrameHandle | undefined => {
+    const pCols
+        = ctx.outputs?.resolve('pagaGraph')?.getPColumns();
+
+    // enriching with leiden clusters data
+    const upstream
+      = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+
+    if (upstream === undefined || pCols === undefined) {
+      return undefined;
+    }
+
+    return ctx.createPFrame([...pCols, ...upstream]);
+  })
+
   .output('plotPcols', (ctx) => {
     const pCols
       = ctx.resultPool
@@ -135,14 +155,16 @@ export const model = BlockModel.create()
         });
 
     // enriching with leiden clusters data
-    const upstream
+    const upstream1
       = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+    const upstream2
+      = ctx.outputs?.resolve('pagaGraph')?.getPColumns();
 
-    if (upstream === undefined) {
+    if (upstream1 === undefined || upstream2 === undefined) {
       return undefined;
     }
 
-    return [...pCols, ...upstream].map(
+    return [...pCols, ...upstream1, ...upstream2].map(
       (c) =>
         ({
           columnId: c.id,

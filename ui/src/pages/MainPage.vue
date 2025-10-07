@@ -16,6 +16,7 @@ const data = reactive({
 const tabOptions = [
   { label: 'UMAP', value: 'umap' },
   { label: 't-SNE', value: 'tsne' },
+  { label: 'PAGA graph', value: 'paga' },
 ];
 
 function getIndex(name: string, pcols: PColumnIdAndSpec[]): number {
@@ -64,12 +65,17 @@ const defaultOptions = computed((): PredefinedGraphOption<'scatterplot-umap'>[] 
       'pl7.app/rna-seq/umap1',
       'pl7.app/rna-seq/umap2',
     );
-  }
-  if (data.currentTab === 'tsne') {
+  } else if (data.currentTab === 'tsne') {
     return createDefaultOptions(
       app.model.outputs.plotPcols,
       'pl7.app/rna-seq/tsne1',
       'pl7.app/rna-seq/tsne2',
+    );
+  } else if (data.currentTab === 'paga') {
+    return createDefaultOptions(
+      app.model.outputs.plotPcols,
+      'pl7.app/rna-seq/graph1',
+      'pl7.app/rna-seq/graph2',
     );
   }
   return undefined;
@@ -77,7 +83,7 @@ const defaultOptions = computed((): PredefinedGraphOption<'scatterplot-umap'>[] 
 
 /* Modify graph state, pframe and default options based on the selected tab */
 const graphState = computed({
-  get: () => data.currentTab === 'umap' ? app.model.ui.graphStateUMAP : app.model.ui.graphStateTSNE,
+  get: () => data.currentTab === 'umap' ? app.model.ui.graphStateUMAP : data.currentTab === 'tsne' ? app.model.ui.graphStateTSNE : app.model.ui.graphStatePAGA,
   set: (value) => {
     if (data.currentTab === 'umap')
       app.model.ui.graphStateUMAP = value;
@@ -86,7 +92,7 @@ const graphState = computed({
   },
 });
 
-const pFrame = computed(() => data.currentTab === 'umap' ? app.model.outputs.UMAPPf : app.model.outputs.tSNEPf);
+const pFrame = computed(() => data.currentTab === 'umap' ? app.model.outputs.UMAPPf : data.currentTab === 'tsne' ? app.model.outputs.tSNEPf : app.model.outputs.PAGAPf);
 
 // Get cluster IDs
 const clusterOptions = useWatchFetch(() => app.model.outputs.selectedClusterPf, async (pframeHandle) => {

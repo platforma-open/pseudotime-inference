@@ -140,8 +140,8 @@ def run_dpt(pca_csv, cluster_csv, out_prefix="output", rev: str | None = None, r
     # Store PAGA graph
     df_t = pd.DataFrame([])
     df_t[['Sample', 'Cell Barcode']] = pd.Series(adata.obs_names).str.split('|', expand=True).values
-    df_t['UMAP1'] = adata.obsm['X_draw_graph_fr'][:, 0]
-    df_t['UMAP2'] = adata.obsm['X_draw_graph_fr'][:, 1]
+    df_t['PAGA1'] = adata.obsm['X_draw_graph_fr'][:, 0]
+    df_t['PAGA2'] = adata.obsm['X_draw_graph_fr'][:, 1]
     df_t.to_csv(f"paga_graph.csv", index=False)
     print(f"✅ PAGA graph CSV saved: paga_graph.csv")
 
