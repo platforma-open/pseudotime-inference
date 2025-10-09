@@ -8,16 +8,16 @@ import { useApp } from '../app';
 
 const app = useApp();
 
-const defaultOptions = computed((): PredefinedGraphOption<'scatterplot-umap'>[] => {
+const defaultOptions = computed((): PredefinedGraphOption<'scatterplot'>[] => {
   const pcols = app.model.outputs.scatterplotPcols;
   if (!pcols || pcols.length === 0)
     return [];
 
   const pseudotimeCol = pcols.findIndex((p) => p.spec.name === 'pl7.app/rna-seq/pseudotimedpt');
-  const countCol = pcols.findIndex((p) => p.spec.name === 'pl7.app/rna-seq/countMatrix'
-    && p.spec.domain?.['pl7.app/rna-seq/normalized'] === 'true');
+  const densityCol = pcols.findIndex((p) => p.spec.name === 'pl7.app/rna-seq/umapdensity');
+  const clusterCol = pcols.findIndex((p) => p.spec.name === 'pl7.app/rna-seq/leidencluster');
 
-  if (pseudotimeCol === -1 || countCol === -1)
+  if (pseudotimeCol === -1 || clusterCol === -1)
     return [];
 
   return [
@@ -27,16 +27,16 @@ const defaultOptions = computed((): PredefinedGraphOption<'scatterplot-umap'>[] 
     },
     {
       inputName: 'y',
-      selectedSource: pcols[countCol].spec,
+      selectedSource: pcols[densityCol].spec,
     },
     {
       inputName: 'grouping',
-      selectedSource: pcols[pseudotimeCol].spec,
+      selectedSource: pcols[clusterCol].spec,
     },
     // Cell ID
     {
       inputName: 'tooltipContent',
-      selectedSource: pcols[pseudotimeCol].spec.axesSpec[1],
+      selectedSource: pcols[clusterCol].spec.axesSpec[1],
     },
   ];
 });
@@ -48,8 +48,8 @@ const key = computed(() => defaultOptions.value ? JSON.stringify(defaultOptions.
   <PlBlockPage>
     <GraphMaker
       :key="key"
-      v-model="app.model.ui.graphStateScatterExpression"
-      chart-type="scatterplot-umap"
+      v-model="app.model.ui.graphStateScatterDensity"
+      chart-type="scatterplot"
       :p-frame="app.model.outputs.scatterplotPf"
       :default-options="defaultOptions"
     />

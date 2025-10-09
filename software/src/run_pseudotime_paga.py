@@ -44,7 +44,7 @@ def _detect_pc_value_col(df: pd.DataFrame) -> str:
     raise KeyError("PCA CSV must contain 'Principal Component Value' or 'Principal Component Value - Harmony corrected'.")
 
 
-def run_dpt(pca_csv, cluster_csv, out_prefix="output", rev: str | None = None, root_cluster: str | None = None):
+def run_dpt(pca_csv, cluster_csv, umap_csv, out_prefix="output", rev: str | None = None, root_cluster: str | None = None):
     # Load PCA data
     print("📥 Reading PCA data...")
     pca_df = pd.read_csv(pca_csv)
@@ -67,6 +67,19 @@ def run_dpt(pca_csv, cluster_csv, out_prefix="output", rev: str | None = None, r
     pca_matrix = pca_df_grouped.pivot(index='cell_id', columns='Principal Component Number', values=pc_value_col)
     pca_matrix.fillna(0, inplace=True)
 
+    # Load UMAP data
+    print("📥 Reading UMAP data...")
+    umap_df = pd.read_csv(umap_csv)
+    sample_col_umap = _find_axis(umap_df, ['Sample', 'SampleId'])
+    cell_col_umap = _find_axis(umap_df, ['Cell Barcode', 'Cell ID', 'CellId'])
+    umap1_col = _find_axis(umap_df, ['UMAP Dim1', 'UMAP1', 'umap1'])
+    umap2_col = _find_axis(umap_df, ['UMAP Dim2', 'UMAP2', 'umap2'])
+    print(f"✅ UMAP axes: Sample='{sample_col_umap}', Cell='{cell_col_umap}', UMAP1='{umap1_col}', UMAP2='{umap2_col}' (rev={rev})")
+
+    umap_df['cell_id'] = umap_df[sample_col_umap].astype(str) + "|" + umap_df[cell_col_umap].astype(str)
+    umap_df = umap_df[['cell_id', umap1_col, umap2_col]].drop_duplicates()
+    umap_df.set_index('cell_id', inplace=True)
+
     # Load clustering data
     print("📥 Reading clustering data...")
     clust_df = pd.read_csv(cluster_csv)
@@ -83,14 +96,15 @@ def run_dpt(pca_csv, cluster_csv, out_prefix="output", rev: str | None = None, r
     clust_df.set_index('cell_id', inplace=True)
 
     # Merge
-    print("🔗 Merging PCA and clusters...")
-    common_cells = pca_matrix.index.intersection(clust_df.index)
+    print("🔗 Merging PCA, UMAP, and clusters...")
+    common_cells = pca_matrix.index.intersection(clust_df.index).intersection(umap_df.index)
     if len(common_cells) == 0:
-        raise ValueError("❌ No overlapping cells found between PCA and cluster files.")
+        raise ValueError("❌ No overlapping cells found between PCA, UMAP, and cluster files.")
     
     adata = sc.AnnData(X=pca_matrix.loc[common_cells].values)
     adata.obs_names = pca_matrix.loc[common_cells].index
     adata.obsm['X_pca'] = pca_matrix.loc[common_cells].values
+    adata.obsm['X_umap'] = umap_df.loc[common_cells][[umap1_col, umap2_col]].values
     adata.obs['leiden'] = clust_df.loc[common_cells][leiden_column].astype(str).values
 
     # Neighbors
@@ -127,6 +141,9 @@ def run_dpt(pca_csv, cluster_csv, out_prefix="output", rev: str | None = None, r
     sc.tl.diffmap(adata)
     sc.tl.dpt(adata)
 
+    # Measure cel density
+    sc.tl.embedding_density(adata)
+
     # Split composite ID back into Sample / Cell Barcode
     print("💾 Saving output...")
     adata.obs[['Sample', 'Cell Barcode']] = pd.Series(adata.obs_names).str.split('|', expand=True).values
@@ -136,6 +153,13 @@ def run_dpt(pca_csv, cluster_csv, out_prefix="output", rev: str | None = None, r
     pseudotime_file = f"{out_prefix}_pseudotime.csv"
     output_df.to_csv(pseudotime_file, index=False)
     print(f"✅ Pseudotime CSV saved: {pseudotime_file}")
+
+    # Store cell density
+    umap_density_file = f"{out_prefix}_umap_density.csv"
+    output_df = adata.obs[['Sample', 'Cell Barcode', 'umap_density']]
+    # Add a cell density of one per pseudotime value
+    output_df.to_csv(umap_density_file, index=False)
+    print(f"✅ Cell density CSV saved: {umap_density_file}")
 
     # Store PAGA graph
     df_t = pd.DataFrame([])
@@ -150,10 +174,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run pseudotime inference using Scanpy + DPT from PCA embeddings and clusters.")
     parser.add_argument('--pca_csv', required=True, help='CSV file with PCA data.')
     parser.add_argument('--cluster_csv', required=True, help='CSV file with Leiden clusters.')
+    parser.add_argument('--umap_csv', required=True, help='CSV file with UMAP coordinates.')
     parser.add_argument('--out_prefix', default='output', help='Prefix for output files.')
     parser.add_argument('--rev', required=False, help='Cache-busting revision token.')
     parser.add_argument('--root_cluster', required=False, help='Root cluster to use for DPT.')
 
     args = parser.parse_args()
 
-    run_dpt(args.pca_csv, args.cluster_csv, args.out_prefix, args.rev, args.root_cluster)
+    run_dpt(args.pca_csv, args.cluster_csv, args.umap_csv, args.out_prefix, args.rev, args.root_cluster)

@@ -18,6 +18,7 @@ export type UiState = {
   graphStatePAGA: GraphMakerState;
   graphStateViolin: GraphMakerState;
   graphStateScatterExpression: GraphMakerState;
+  graphStateScatterDensity: GraphMakerState;
   anchorColumn?: PlRef;
 };
 
@@ -44,18 +45,27 @@ export const model = BlockModel.create()
     graphStateTSNE: {
       title: 'tSNE',
       template: 'dots',
+      currentTab: null,
     },
     graphStatePAGA: {
       title: 'PAGA graph',
       template: 'dots',
+      currentTab: null,
     },
     graphStateViolin: {
       title: 'Violin',
       template: 'violin',
+      currentTab: null,
     },
     graphStateScatterExpression: {
       title: 'Scatter Expression',
       template: 'dots',
+      currentTab: null,
+    },
+    graphStateScatterDensity: {
+      title: 'Pseudotime across cell groups',
+      template: 'dots',
+      currentTab: null,
     },
   })
 
@@ -229,40 +239,33 @@ export const model = BlockModel.create()
   .output('scatterplotPf', (ctx): PFrameHandle | undefined => {
     // Get pseudotime scores
     const pseudotimeCols = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+    const umapDensityCols = ctx.outputs?.resolve('umapDensity')?.getPColumns();
 
-    // Get normalized gene expression data from result pool
-    const geneExpressionCols = ctx.resultPool
-      .getData()
-      .entries.map((c) => c.obj)
-      .filter(isPColumn)
-      .filter((col) => {
-        // Look for gene expression columns
-        return col.spec.name === 'pl7.app/rna-seq/countMatrix';
-      });
-
-    if (pseudotimeCols === undefined || geneExpressionCols.length === 0) {
+    if (pseudotimeCols === undefined || umapDensityCols === undefined) {
       return undefined;
     }
 
-    return createPFrameForGraphs(ctx, pseudotimeCols);
+    return createPFrameForGraphs(ctx, [...pseudotimeCols, ...umapDensityCols]);
   })
 
   .output('scatterplotPcols', (ctx) => {
     const pseudotimeCols = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+    const umapDensityCols = ctx.outputs?.resolve('umapDensity')?.getPColumns();
 
     const geneExpressionCols = ctx.resultPool
       .getData()
       .entries.map((c) => c.obj)
       .filter(isPColumn)
       .filter((col) => {
-        return col.spec.name === 'pl7.app/rna-seq/countMatrix';
+        return col.spec.name === 'pl7.app/rna-seq/countMatrix'
+          || col.spec.name === 'pl7.app/rna-seq/leidencluster';
       });
 
-    if (pseudotimeCols === undefined || geneExpressionCols.length === 0) {
+    if (pseudotimeCols === undefined || geneExpressionCols.length === 0 || umapDensityCols === undefined) {
       return undefined;
     }
 
-    return [...pseudotimeCols, ...geneExpressionCols].map(
+    return [...pseudotimeCols, ...geneExpressionCols, ...umapDensityCols].map(
       (c) =>
         ({
           columnId: c.id,
@@ -276,7 +279,8 @@ export const model = BlockModel.create()
   .sections((_ctx) => ([
     { type: 'link', href: '/', label: 'Main' },
     { type: 'link', href: '/violin', label: 'Violin plot' },
-    { type: 'link', href: '/scatterExpression', label: 'Expression and Pseudotime' },
+    { type: 'link', href: '/scatterExpression', label: 'Expression vs Pseudotime' },
+    { type: 'link', href: '/scatterDensity', label: 'Cell density vs Pseudotime' },
   ]))
 
   .title((ctx) =>
