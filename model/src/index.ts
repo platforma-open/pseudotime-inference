@@ -279,8 +279,8 @@ export const model = BlockModel.create()
   .sections((_ctx) => ([
     { type: 'link', href: '/', label: 'Main' },
     { type: 'link', href: '/violin', label: 'Violin plot' },
-    { type: 'link', href: '/scatterExpression', label: 'Expression vs Pseudotime' },
-    { type: 'link', href: '/scatterDensity', label: 'Cell density vs Pseudotime' },
+    { type: 'link', href: '/scatterExpression', label: 'Gene Expression' },
+    { type: 'link', href: '/scatterDensity', label: 'Cell Density' },
   ]))
 
   .title((ctx) =>

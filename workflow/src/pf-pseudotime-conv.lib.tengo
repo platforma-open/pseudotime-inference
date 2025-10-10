@@ -24,7 +24,7 @@ getColumns := func(blockId, inputSpec) {
             "pl7.app/blockId": blockId
           },
           "annotations": {
-            "pl7.app/label": "Pseudotime Scores"
+            "pl7.app/label": "Pseudotime"
           }
         }
       }
