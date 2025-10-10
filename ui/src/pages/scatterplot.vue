@@ -34,9 +34,13 @@ const defaultOptions = computed((): PredefinedGraphOption<'scatterplot-umap'>[] 
       selectedSource: pcols[pseudotimeCol].spec,
     },
     // Cell ID
+    // {
+    //   inputName: 'tooltipContent',
+    //   selectedSource: pcols[pseudotimeCol].spec.axesSpec[1],
+    // },
     {
-      inputName: 'tooltipContent',
-      selectedSource: pcols[pseudotimeCol].spec.axesSpec[1],
+      inputName: 'filters',
+      selectedSource: pcols[countCol].spec.axesSpec[2],
     },
   ];
 });
