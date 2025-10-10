@@ -14,17 +14,32 @@ getColumns := func(blockId, inputSpec) {
       ],
     "columns": [
       {
-        "column": "dpt_pseudotime",
-        "id": "pseudotimedpt",
-        "allowNA": true,
+        "column": "PAGA1",
+        "id": "paga1",
+        "allowNA": false,
         "spec": {
-          "name": "pl7.app/rna-seq/pseudotimedpt",
+          "name": "pl7.app/rna-seq/graph1",
           "valueType": "Double",
           "domain": {
             "pl7.app/blockId": blockId
           },
           "annotations": {
-            "pl7.app/label": "Pseudotime"
+            "pl7.app/label": "PAGA Dim1"
+          }
+        }
+      },
+      {
+        "column": "PAGA2",
+        "id": "paga2",
+        "allowNA": false,
+        "spec": {
+          "name": "pl7.app/rna-seq/graph2",
+          "valueType": "Double",
+          "domain": {
+            "pl7.app/blockId": blockId
+          },
+          "annotations": {
+            "pl7.app/label": "PAGA Dim2"
           }
         }
       }

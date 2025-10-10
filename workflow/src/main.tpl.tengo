@@ -7,6 +7,8 @@ pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
 json := import("json")
 
 pfPseudotimeConv := import(":pf-pseudotime-conv")
+pfPagaGraphConv := import(":pf-paga-graph-conv")
+pfUmapDensityConv := import(":pf-umap-density-conv")
 
 wf.prepare(func(args){
 	// Validate cluster annotation is provided
@@ -25,6 +27,14 @@ wf.prepare(func(args){
 	bundleBuilder.addMulti({
 		name: "pl7.app/rna-seq/pcvalue"
 	}, "principalComponents")
+
+	// Add query for UMAP
+	bundleBuilder.addMulti({
+		name: "pl7.app/rna-seq/umap1"
+	}, "umap1")
+	bundleBuilder.addMulti({
+		name: "pl7.app/rna-seq/umap2"
+	}, "umap2")
 	
 	return {
 		columns: bundleBuilder.build()
@@ -82,6 +92,44 @@ wf.body(func(args) {
 		error("No associated principal components found for the given cluster annotation.")
 	}
 
+	// Find the matching UMAP coordinates from the available ones
+	allUMAPCoordinates1 := columns.getColumns("umap1")
+	umapCoordinates1 := undefined
+	allUMAPCoordinates2 := columns.getColumns("umap2")
+	umapCoordinates2 := undefined
+
+	// First check if we have batch corrected results
+	batchCorrected := "false"
+	for pc in allUMAPCoordinates1 {
+		if !is_undefined(pc.spec.domain) && 
+		   pc.spec.domain["pl7.app/blockId"] == pcaBlockId &&
+		   pc.spec.domain["pl7.app/rna-seq/batch-corrected"] == "true" {
+			batchCorrected = "true"
+			break
+		}
+	}
+	
+	for pc in allUMAPCoordinates1 {
+		if !is_undefined(pc.spec.domain) && 
+		   pc.spec.domain["pl7.app/blockId"] == pcaBlockId &&
+		   pc.spec.domain["pl7.app/rna-seq/batch-corrected"] == batchCorrected {
+			umapCoordinates1 = pc
+			break
+		}
+	}
+	for pc in allUMAPCoordinates2 {
+		if !is_undefined(pc.spec.domain) && 
+		   pc.spec.domain["pl7.app/blockId"] == pcaBlockId &&
+		   pc.spec.domain["pl7.app/rna-seq/batch-corrected"] == batchCorrected {
+			umapCoordinates2 = pc
+			break
+		}
+	}
+	
+	if is_undefined(umapCoordinates1) || is_undefined(umapCoordinates2) {
+		error("No associated UMAP coordinates found for the given cluster annotation.")
+	}
+
 	inputSpec := principalComponents.spec
 
 	// Set default conversion memory and CPU
@@ -90,25 +138,39 @@ wf.body(func(args) {
 
 	csvEmbeddings := xsv.exportFrame([principalComponents], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
 	csvClusters := xsv.exportFrame([clusterAnnotation], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
+	csvUmapCoordinates := xsv.exportFrame([umapCoordinates1, umapCoordinates2], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
 
 	pseudotimeInference := exec.builder().
-		software(assets.importSoftware("@platforma-open/milaboratories.pseudotime-inference.software:pseudotime-dpt")).
+		software(assets.importSoftware("@platforma-open/milaboratories.pseudotime-inference.software:pseudotime-paga")).
 		mem("16GiB").
 		cpu(1).
 		addFile("embeddings.csv", csvEmbeddings).
 		addFile("clusters.csv", csvClusters).
+		addFile("umap_coordinates.csv", csvUmapCoordinates).
 		arg("--pca_csv").arg("embeddings.csv").
 		arg("--cluster_csv").arg("clusters.csv").
-		arg("--out_prefix").arg("dpt").
-		saveFile("dpt_pseudotime.csv").
+		arg("--umap_csv").arg("umap_coordinates.csv").
+		arg("--out_prefix").arg("paga")
+
+	if !is_undefined(args.rootCluster) {
+		pseudotimeInference.arg("--root_cluster").arg(args.rootCluster)
+	}
+	pseudotimeInference = pseudotimeInference.
+		saveFile("paga_pseudotime.csv").
+		saveFile("paga_graph.csv").
+		saveFile("paga_umap_density.csv").
 		printErrStreamToStdout().
 		saveStdoutContent().
 		cache(24 * 60 * 60 * 1000).
 		run()
 
 	pseudotimeScoresImportParams := pfPseudotimeConv.getColumns(blockId, inputSpec)
-	pseudotimePf := xsv.importFile(pseudotimeInference.getFile("dpt_pseudotime.csv"), "csv", pseudotimeScoresImportParams, {splitDataAndSpec: true, mem: defaultConvMem, cpu: defaultConvCpu})
-
+	pseudotimePf := xsv.importFile(pseudotimeInference.getFile("paga_pseudotime.csv"), "csv", pseudotimeScoresImportParams, {splitDataAndSpec: true, mem: defaultConvMem, cpu: defaultConvCpu})
+	pagaGraphImportParams := pfPagaGraphConv.getColumns(blockId, inputSpec)
+	pagaGraphPf := xsv.importFile(pseudotimeInference.getFile("paga_graph.csv"), "csv", pagaGraphImportParams, {mem: defaultConvMem, cpu: defaultConvCpu})
+	umapDensityImportParams := pfUmapDensityConv.getColumns(blockId, inputSpec)
+	umapDensityPf := xsv.importFile(pseudotimeInference.getFile("paga_umap_density.csv"), "csv", umapDensityImportParams, {mem: defaultConvMem, cpu: defaultConvCpu})
+	
 	trace := pSpec.makeTrace(inputSpec,
 		{type: "milaboratories.pseudotime-inference", id: blockId, importance: 60, label: "Pseudotime Inference"}
 	)
@@ -122,7 +184,9 @@ wf.body(func(args) {
 
 	return {
 		outputs: {
-			pseudotimeScores: pframes.exportFrame(pseudotimeOutputPf)
+			pseudotimeScores: pframes.exportFrame(pseudotimeOutputPf),
+			pagaGraph: pframes.exportFrame(pagaGraphPf),
+			umapDensity: pframes.exportFrame(umapDensityPf)
 		},
 		exports: {
 			pf: pseudotimeOutputPf
