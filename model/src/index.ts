@@ -53,17 +53,17 @@ export const model = BlockModel.create()
       currentTab: null,
     },
     graphStateViolin: {
-      title: 'Violin',
+      title: 'Cluster Pseudotime',
       template: 'violin',
       currentTab: null,
     },
     graphStateScatterExpression: {
-      title: 'Scatter Expression',
+      title: 'Gene Expression',
       template: 'dots',
       currentTab: null,
     },
     graphStateScatterDensity: {
-      title: 'Pseudotime across cell groups',
+      title: 'Cell Density',
       template: 'dots',
       currentTab: null,
     },
@@ -277,8 +277,8 @@ export const model = BlockModel.create()
   .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
 
   .sections((_ctx) => ([
-    { type: 'link', href: '/', label: 'Main' },
-    { type: 'link', href: '/violin', label: 'Violin plot' },
+    { type: 'link', href: '/', label: 'UMAP' },
+    { type: 'link', href: '/violin', label: 'Cluster Pseudotime' },
     { type: 'link', href: '/scatterExpression', label: 'Gene Expression' },
     { type: 'link', href: '/scatterDensity', label: 'Cell Density' },
   ]))
