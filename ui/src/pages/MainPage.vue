@@ -2,9 +2,8 @@
 import type { PredefinedGraphOption } from '@milaboratories/graph-maker';
 import { GraphMaker } from '@milaboratories/graph-maker';
 import '@milaboratories/graph-maker/styles';
-import type { PColumnIdAndSpec, PlRef } from '@platforma-sdk/model';
-import { plRefsEqual } from '@platforma-sdk/model';
-import { PlBlockPage, PlDropdownRef, PlTabs } from '@platforma-sdk/ui-vue';
+import { PFrameImpl, type PColumnIdAndSpec } from '@platforma-sdk/model';
+import { PlAccordionSection, PlBlockPage, PlDropdownRef, PlTabs, useWatchFetch } from '@platforma-sdk/ui-vue';
 import { computed, reactive } from 'vue';
 import { useApp } from '../app';
 
@@ -17,6 +16,7 @@ const data = reactive({
 const tabOptions = [
   { label: 'UMAP', value: 'umap' },
   { label: 't-SNE', value: 'tsne' },
+  { label: 'PAGA graph', value: 'paga' },
 ];
 
 function getIndex(name: string, pcols: PColumnIdAndSpec[]): number {
@@ -65,12 +65,17 @@ const defaultOptions = computed((): PredefinedGraphOption<'scatterplot-umap'>[] 
       'pl7.app/rna-seq/umap1',
       'pl7.app/rna-seq/umap2',
     );
-  }
-  if (data.currentTab === 'tsne') {
+  } else if (data.currentTab === 'tsne') {
     return createDefaultOptions(
       app.model.outputs.plotPcols,
       'pl7.app/rna-seq/tsne1',
       'pl7.app/rna-seq/tsne2',
+    );
+  } else if (data.currentTab === 'paga') {
+    return createDefaultOptions(
+      app.model.outputs.plotPcols,
+      'pl7.app/rna-seq/graph1',
+      'pl7.app/rna-seq/graph2',
     );
   }
   return undefined;
@@ -78,7 +83,7 @@ const defaultOptions = computed((): PredefinedGraphOption<'scatterplot-umap'>[] 
 
 /* Modify graph state, pframe and default options based on the selected tab */
 const graphState = computed({
-  get: () => data.currentTab === 'umap' ? app.model.ui.graphStateUMAP : app.model.ui.graphStateTSNE,
+  get: () => data.currentTab === 'umap' ? app.model.ui.graphStateUMAP : data.currentTab === 'tsne' ? app.model.ui.graphStateTSNE : app.model.ui.graphStatePAGA,
   set: (value) => {
     if (data.currentTab === 'umap')
       app.model.ui.graphStateUMAP = value;
@@ -87,7 +92,30 @@ const graphState = computed({
   },
 });
 
-const pFrame = computed(() => data.currentTab === 'umap' ? app.model.outputs.UMAPPf : app.model.outputs.tSNEPf);
+const pFrame = computed(() => data.currentTab === 'umap' ? app.model.outputs.UMAPPf : data.currentTab === 'tsne' ? app.model.outputs.tSNEPf : app.model.outputs.PAGAPf);
+
+// Get cluster IDs
+const clusterOptions = useWatchFetch(() => app.model.outputs.selectedClusterPf, async (pframeHandle) => {
+  if (!pframeHandle) {
+    return undefined;
+  }
+  // Get ID of first pcolumn in the pframe (the only one we will access)
+  const pFrame = new PFrameImpl(pframeHandle);
+  const list = await pFrame.listColumns();
+  const id = list?.[0].columnId;
+  if (!id) {
+    return undefined;
+  }
+  // Get unique values of that first pcolumn
+  const response = await pFrame.getUniqueValues({ columnId: id, filters: [], limit: 1000000 });
+  if (!response) {
+    return undefined;
+  }
+  if (response.values.data.length === 0) {
+    return undefined;
+  }
+  return [...response.values.data].map((v) => ({ value: String(v), label: String(v) }));
+});
 
 </script>
 
@@ -112,6 +140,15 @@ const pFrame = computed(() => data.currentTab === 'umap' ? app.model.outputs.UMA
           clearable
           required
         />
+        <PlAccordionSection label="Advanced Settings">
+          <PlDropdownRef
+            v-model="app.model.args.rootCluster"
+            :options="clusterOptions.value"
+            label="Root cluster"
+            clearable
+            tooltip="Select the starting cluster for the pseudotime analysis."
+          />
+        </PlAccordionSection>
       </template>
     </GraphMaker>
   </PlBlockPage>

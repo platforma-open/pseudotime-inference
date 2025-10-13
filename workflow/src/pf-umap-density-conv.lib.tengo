@@ -14,17 +14,17 @@ getColumns := func(blockId, inputSpec) {
       ],
     "columns": [
       {
-        "column": "dpt_pseudotime",
-        "id": "pseudotimedpt",
+        "column": "umap_density",
+        "id": "umapdensity",
         "allowNA": true,
         "spec": {
-          "name": "pl7.app/rna-seq/pseudotimedpt",
+          "name": "pl7.app/rna-seq/umapdensity",
           "valueType": "Double",
           "domain": {
             "pl7.app/blockId": blockId
           },
           "annotations": {
-            "pl7.app/label": "Pseudotime"
+            "pl7.app/label": "UMAP Density"
           }
         }
       }

@@ -7,6 +7,7 @@ import type {
 } from '@platforma-sdk/model';
 import {
   BlockModel,
+  createPFrameForGraphs,
   isPColumn,
   isPColumnSpec,
 } from '@platforma-sdk/model';
@@ -14,13 +15,17 @@ import {
 export type UiState = {
   graphStateUMAP: GraphMakerState;
   graphStateTSNE: GraphMakerState;
+  graphStatePAGA: GraphMakerState;
   graphStateViolin: GraphMakerState;
+  graphStateScatterExpression: GraphMakerState;
+  graphStateScatterDensity: GraphMakerState;
   anchorColumn?: PlRef;
 };
 
 export type BlockArgs = {
   clusterAnnotationRef?: PlRef;
   title?: string;
+  rootCluster?: string;
 };
 
 export const model = BlockModel.create()
@@ -40,10 +45,27 @@ export const model = BlockModel.create()
     graphStateTSNE: {
       title: 'tSNE',
       template: 'dots',
+      currentTab: null,
+    },
+    graphStatePAGA: {
+      title: 'PAGA graph',
+      template: 'dots',
+      currentTab: null,
     },
     graphStateViolin: {
-      title: 'Violin',
+      title: 'Cluster Pseudotime',
       template: 'violin',
+      currentTab: null,
+    },
+    graphStateScatterExpression: {
+      title: 'Gene Expression',
+      template: 'dots',
+      currentTab: null,
+    },
+    graphStateScatterDensity: {
+      title: 'Cell Density',
+      template: 'dots',
+      currentTab: null,
     },
   })
 
@@ -53,6 +75,13 @@ export const model = BlockModel.create()
         || spec.name === 'pl7.app/rna-seq/cellType')
     , { includeNativeLabel: true, addLabelAsSuffix: true }),
   )
+
+  .output('selectedClusterPf', (ctx) => {
+    if (ctx.args.clusterAnnotationRef === undefined) return undefined;
+    const pCols = ctx.resultPool.getPColumnByRef(ctx.args.clusterAnnotationRef);
+    if (pCols === undefined) return undefined;
+    return ctx.createPFrame([pCols]);
+  })
 
   .output('anchorSpec', (ctx) => {
     // return the Reference of the p-column selected as input dataset in Settings
@@ -115,6 +144,21 @@ export const model = BlockModel.create()
     return ctx.createPFrame([...pCols, ...upstream]);
   })
 
+  .output('PAGAPf', (ctx): PFrameHandle | undefined => {
+    const pCols
+        = ctx.outputs?.resolve('pagaGraph')?.getPColumns();
+
+    // enriching with leiden clusters data
+    const upstream
+      = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+
+    if (upstream === undefined || pCols === undefined) {
+      return undefined;
+    }
+
+    return ctx.createPFrame([...pCols, ...upstream]);
+  })
+
   .output('plotPcols', (ctx) => {
     const pCols
       = ctx.resultPool
@@ -127,14 +171,16 @@ export const model = BlockModel.create()
         });
 
     // enriching with leiden clusters data
-    const upstream
+    const upstream1
       = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+    const upstream2
+      = ctx.outputs?.resolve('pagaGraph')?.getPColumns();
 
-    if (upstream === undefined) {
+    if (upstream1 === undefined || upstream2 === undefined) {
       return undefined;
     }
 
-    return [...pCols, ...upstream].map(
+    return [...pCols, ...upstream1, ...upstream2].map(
       (c) =>
         ({
           columnId: c.id,
@@ -190,11 +236,51 @@ export const model = BlockModel.create()
     return ctx.createPFrame([...pCols, ...upstream]);
   })
 
+  .output('scatterplotPf', (ctx): PFrameHandle | undefined => {
+    // Get pseudotime scores
+    const pseudotimeCols = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+    const umapDensityCols = ctx.outputs?.resolve('umapDensity')?.getPColumns();
+
+    if (pseudotimeCols === undefined || umapDensityCols === undefined) {
+      return undefined;
+    }
+
+    return createPFrameForGraphs(ctx, [...pseudotimeCols, ...umapDensityCols]);
+  })
+
+  .output('scatterplotPcols', (ctx) => {
+    const pseudotimeCols = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+    const umapDensityCols = ctx.outputs?.resolve('umapDensity')?.getPColumns();
+
+    const geneExpressionCols = ctx.resultPool
+      .getData()
+      .entries.map((c) => c.obj)
+      .filter(isPColumn)
+      .filter((col) => {
+        return col.spec.name === 'pl7.app/rna-seq/countMatrix'
+          || col.spec.name === 'pl7.app/rna-seq/leidencluster';
+      });
+
+    if (pseudotimeCols === undefined || geneExpressionCols.length === 0 || umapDensityCols === undefined) {
+      return undefined;
+    }
+
+    return [...pseudotimeCols, ...geneExpressionCols, ...umapDensityCols].map(
+      (c) =>
+        ({
+          columnId: c.id,
+          spec: c.spec,
+        } satisfies PColumnIdAndSpec),
+    );
+  })
+
   .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
 
   .sections((_ctx) => ([
-    { type: 'link', href: '/', label: 'Main' },
-    { type: 'link', href: '/violin', label: 'Violin plot' },
+    { type: 'link', href: '/', label: 'UMAP' },
+    { type: 'link', href: '/violin', label: 'Cluster Pseudotime' },
+    // { type: 'link', href: '/scatterExpression', label: 'Gene Expression' },
+    { type: 'link', href: '/scatterDensity', label: 'Cell Density' },
   ]))
 
   .title((ctx) =>
