@@ -279,7 +279,7 @@ export const model = BlockModel.create()
   .sections((_ctx) => ([
     { type: 'link', href: '/', label: 'UMAP' },
     { type: 'link', href: '/violin', label: 'Cluster Pseudotime' },
-    // { type: 'link', href: '/scatterExpression', label: 'Gene Expression' },
+    { type: 'link', href: '/scatterExpression', label: 'Gene Expression' },
     { type: 'link', href: '/scatterDensity', label: 'Cell Density' },
   ]))
 
