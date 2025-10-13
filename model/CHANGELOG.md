@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.pseudotime-inference.model
 
+## 1.5.0
+
+### Minor Changes
+
+- 95d64ef: Fix previous merge including new features in block
+
 ## 1.4.0
 
 ### Minor Changes

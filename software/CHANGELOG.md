@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.leiden-clustering.software
 
+## 1.3.0
+
+### Minor Changes
+
+- 95d64ef: Fix previous merge including new features in block
+
 ## 1.2.2
 
 ### Patch Changes
