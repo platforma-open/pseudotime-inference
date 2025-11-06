@@ -29,7 +29,7 @@ getColumns := func(blockId, inputSpec) {
         }
       }
       ],
-    "storageFormat": "Binary",
+    "storageFormat": "Parquet",
     "partitionKeyLength": 1
   }
 }
