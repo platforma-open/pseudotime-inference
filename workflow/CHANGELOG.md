@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.pseudotime-inference.workflow
 
+## 1.6.1
+
+### Patch Changes
+
+- 1673f9f: Update to Parquet
+
 ## 1.6.0
 
 ### Minor Changes
