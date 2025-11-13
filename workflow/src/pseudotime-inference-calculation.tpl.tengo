@@ -1,0 +1,51 @@
+self := import("@platforma-sdk/workflow-tengo:tpl")
+exec := import("@platforma-sdk/workflow-tengo:exec")
+assets := import("@platforma-sdk/workflow-tengo:assets")
+
+self.defineOutputs("pseudotimeCsv", "pagaGraphCsv", "umapDensityCsv")
+
+self.body(func(args) {
+    // Input parameters
+    csvEmbeddings := args.csvEmbeddings
+    csvClusters := args.csvClusters
+    csvUmapCoordinates := args.csvUmapCoordinates
+    rootCluster := args.rootCluster
+    mem := args.mem
+    cpu := args.cpu
+
+    // Pseudotime inference software execution
+    pseudotimeInference := exec.builder().
+        software(assets.importSoftware("@platforma-open/milaboratories.pseudotime-inference.software:pseudotime-paga")).
+        mem(mem).
+        cpu(cpu).
+        addFile("embeddings.csv", csvEmbeddings).
+        addFile("clusters.csv", csvClusters).
+        addFile("umap_coordinates.csv", csvUmapCoordinates).
+        arg("--pca_csv").arg("embeddings.csv").
+        arg("--cluster_csv").arg("clusters.csv").
+        arg("--umap_csv").arg("umap_coordinates.csv").
+        arg("--out_prefix").arg("paga")
+
+    if !is_undefined(rootCluster) {
+        pseudotimeInference = pseudotimeInference.arg("--root_cluster").arg(string(rootCluster))
+    }
+
+    pseudotimeInference = pseudotimeInference.
+        saveFile("paga_pseudotime.csv").
+        saveFile("paga_graph.csv").
+        saveFile("paga_umap_density.csv").
+        cache(24 * 60 * 60 * 1000).
+        run()
+
+    // Get result files
+    pseudotimeCsv := pseudotimeInference.getFile("paga_pseudotime.csv")
+    pagaGraphCsv := pseudotimeInference.getFile("paga_graph.csv")
+    umapDensityCsv := pseudotimeInference.getFile("paga_umap_density.csv")
+
+    return {
+        pseudotimeCsv: pseudotimeCsv,
+        pagaGraphCsv: pagaGraphCsv,
+        umapDensityCsv: umapDensityCsv
+    }
+})
+
