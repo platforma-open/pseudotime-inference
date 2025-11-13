@@ -171,8 +171,16 @@ wf.body(func(args) {
 	umapDensityImportParams := pfUmapDensityConv.getColumns(blockId, inputSpec)
 	umapDensityPf := xsv.importFile(pseudotimeInference.getFile("paga_umap_density.csv"), "csv", umapDensityImportParams, {mem: defaultConvMem, cpu: defaultConvCpu})
 	
+	// Create informative label with cluster annotation and root cluster parameter if provided
+	clusterLabel := clusterSpec.annotations["pl7.app/label"]
+	traceLabel := "Pseudotime Inference (" + clusterLabel + ")"
+	if !is_undefined(args.rootCluster) {
+		rootClusterStr := string(args.rootCluster)
+		traceLabel = "Pseudotime Inference (" + clusterLabel + ", root:" + rootClusterStr + ")"
+	}
+	
 	trace := pSpec.makeTrace(inputSpec,
-		{type: "milaboratories.pseudotime-inference", id: blockId, importance: 60, label: "Pseudotime Inference"}
+		{type: "milaboratories.pseudotime-inference", id: blockId, importance: 60, label: traceLabel}
 	)
 
 	// Build pseudotime scores pFrame with trace injection
