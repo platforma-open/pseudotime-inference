@@ -71,8 +71,7 @@ export const model = BlockModel.create()
 
   .output('clusterAnnotationOptions', (ctx) =>
     ctx.resultPool.getOptions((spec) => isPColumnSpec(spec)
-      && (spec.name === 'pl7.app/rna-seq/leidencluster'
-        || spec.name === 'pl7.app/rna-seq/cellType')
+      && spec.name === 'pl7.app/rna-seq/leidencluster'
     , { includeNativeLabel: true, addLabelAsSuffix: true }),
   )
 
