@@ -27,9 +27,9 @@
     "meta": {
       "title": "Pseudotime Inference",
       "logo": "file:../logos/block-logo.png",
-      "url": "https://github.com/platforma-open/milaboratories.pseudotime-inference",
+      "url": "https://github.com/platforma-open/pseudotime-inference",
       "support": "mailto:support@milaboratories.com",
-      "description": "Calculates a pseudotime trajectory from single cell RNA-seq data.",
+      "description": "Calculates pseudotime trajectories using PAGA and DPT to order cells along biological processes.",
       "longDescription": "file:../docs/description.md",
       "changelog": "file:../CHANGELOG.md",
       "tags": [

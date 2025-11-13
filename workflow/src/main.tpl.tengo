@@ -1,6 +1,6 @@
 wf := import("@platforma-sdk/workflow-tengo:workflow")
-exec := import("@platforma-sdk/workflow-tengo:exec")
 assets:= import("@platforma-sdk/workflow-tengo:assets")
+render := import("@platforma-sdk/workflow-tengo:render")
 xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
 pframes := import("@platforma-sdk/workflow-tengo:pframes")
 pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
@@ -9,6 +9,7 @@ json := import("json")
 pfPseudotimeConv := import(":pf-pseudotime-conv")
 pfPagaGraphConv := import(":pf-paga-graph-conv")
 pfUmapDensityConv := import(":pf-umap-density-conv")
+pseudotimeInferenceTpl := assets.importTemplate(":pseudotime-inference-calculation")
 
 wf.prepare(func(args){
 	// Validate cluster annotation is provided
@@ -140,39 +141,32 @@ wf.body(func(args) {
 	csvClusters := xsv.exportFrame([clusterAnnotation], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
 	csvUmapCoordinates := xsv.exportFrame([umapCoordinates1, umapCoordinates2], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
 
-	pseudotimeInference := exec.builder().
-		software(assets.importSoftware("@platforma-open/milaboratories.pseudotime-inference.software:pseudotime-paga")).
-		mem("16GiB").
-		cpu(1).
-		addFile("embeddings.csv", csvEmbeddings).
-		addFile("clusters.csv", csvClusters).
-		addFile("umap_coordinates.csv", csvUmapCoordinates).
-		arg("--pca_csv").arg("embeddings.csv").
-		arg("--cluster_csv").arg("clusters.csv").
-		arg("--umap_csv").arg("umap_coordinates.csv").
-		arg("--out_prefix").arg("paga")
-
-	if !is_undefined(args.rootCluster) {
-		pseudotimeInference.arg("--root_cluster").arg(args.rootCluster)
-	}
-	pseudotimeInference = pseudotimeInference.
-		saveFile("paga_pseudotime.csv").
-		saveFile("paga_graph.csv").
-		saveFile("paga_umap_density.csv").
-		printErrStreamToStdout().
-		saveStdoutContent().
-		cache(24 * 60 * 60 * 1000).
-		run()
+	pseudotimeInferenceRender := render.create(pseudotimeInferenceTpl, {
+		csvEmbeddings: csvEmbeddings,
+		csvClusters: csvClusters,
+		csvUmapCoordinates: csvUmapCoordinates,
+		rootCluster: args.rootCluster,
+		mem: "16GiB",
+		cpu: 1
+	})
 
 	pseudotimeScoresImportParams := pfPseudotimeConv.getColumns(blockId, inputSpec)
-	pseudotimePf := xsv.importFile(pseudotimeInference.getFile("paga_pseudotime.csv"), "csv", pseudotimeScoresImportParams, {splitDataAndSpec: true, mem: defaultConvMem, cpu: defaultConvCpu})
+	pseudotimePf := xsv.importFile(pseudotimeInferenceRender.output("pseudotimeCsv"), "csv", pseudotimeScoresImportParams, {splitDataAndSpec: true, mem: defaultConvMem, cpu: defaultConvCpu})
 	pagaGraphImportParams := pfPagaGraphConv.getColumns(blockId, inputSpec)
-	pagaGraphPf := xsv.importFile(pseudotimeInference.getFile("paga_graph.csv"), "csv", pagaGraphImportParams, {mem: defaultConvMem, cpu: defaultConvCpu})
+	pagaGraphPf := xsv.importFile(pseudotimeInferenceRender.output("pagaGraphCsv"), "csv", pagaGraphImportParams, {mem: defaultConvMem, cpu: defaultConvCpu})
 	umapDensityImportParams := pfUmapDensityConv.getColumns(blockId, inputSpec)
-	umapDensityPf := xsv.importFile(pseudotimeInference.getFile("paga_umap_density.csv"), "csv", umapDensityImportParams, {mem: defaultConvMem, cpu: defaultConvCpu})
+	umapDensityPf := xsv.importFile(pseudotimeInferenceRender.output("umapDensityCsv"), "csv", umapDensityImportParams, {mem: defaultConvMem, cpu: defaultConvCpu})
+	
+	// Create informative label with cluster annotation and root cluster parameter if provided
+	clusterLabel := clusterSpec.annotations["pl7.app/label"]
+	traceLabel := "Pseudotime Inference (" + clusterLabel + ")"
+	if !is_undefined(args.rootCluster) {
+		rootClusterStr := string(args.rootCluster)
+		traceLabel = "Pseudotime Inference (" + clusterLabel + ", root:" + rootClusterStr + ")"
+	}
 	
 	trace := pSpec.makeTrace(inputSpec,
-		{type: "milaboratories.pseudotime-inference", id: blockId, importance: 60, label: "Pseudotime Inference"}
+		{type: "milaboratories.pseudotime-inference", id: blockId, importance: 60, label: traceLabel}
 	)
 
 	// Build pseudotime scores pFrame with trace injection
