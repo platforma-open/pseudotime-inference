@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.pseudotime-inference.workflow
 
+## 1.7.0
+
+### Minor Changes
+
+- d58eb12: Enable deduplication and metadata update
+
 ## 1.6.1
 
 ### Patch Changes
