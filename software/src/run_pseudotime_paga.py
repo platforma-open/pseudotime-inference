@@ -2,6 +2,8 @@ import argparse
 import pandas as pd
 import scanpy as sc
 import numpy as np
+from scanpy.tools._draw_graph import _choose_graph, get_init_pos_from_paga
+from fa2_modified import ForceAtlas2
 
 
 def _canon(s: str) -> str:
@@ -42,6 +44,88 @@ def _detect_pc_value_col(df: pd.DataFrame) -> str:
     if 'Principal Component Value - Harmony corrected' in df.columns:
         return 'Principal Component Value - Harmony corrected'
     raise KeyError("PCA CSV must contain 'Principal Component Value' or 'Principal Component Value - Harmony corrected'.")
+
+
+def draw_graph_fa2_modified(
+    adata,
+    layout='fa',
+    init_pos: str | bool | None = None,
+    root: int | None = None,
+    random_state=0,
+    adjacency=None,
+    key_added: str | None = None,
+    neighbors_key: str | None = None,
+    obsp: str | None = None,
+    copy: bool = False,
+    **kwargs,
+):
+    """
+    Modified version of scanpy's draw_graph that uses fa2_modified instead of fa2.
+    This function replicates the behavior of sc.tl.draw_graph but uses fa2_modified.
+    """
+    import warnings
+    
+    if layout != 'fa2_modified':
+        # For non-FA layouts, fall back to original scanpy function
+        return sc.tl.draw_graph(
+            adata, layout=layout, init_pos=init_pos, root=root,
+            random_state=random_state, adjacency=adjacency,
+            key_added=key_added, neighbors_key=neighbors_key, obsp=obsp,
+            copy=copy, **kwargs
+        )
+    
+    # Get adjacency matrix
+    adjacency = _choose_graph(adata, obsp, neighbors_key)
+    
+    # Get initial coordinates
+    if init_pos in adata.obsm.keys():
+        init_coords = adata.obsm[init_pos]
+    elif init_pos == "paga" or init_pos:
+        init_coords = get_init_pos_from_paga(
+            adata,
+            adjacency,
+            random_state=random_state,
+            neighbors_key=neighbors_key,
+            obsp=obsp,
+        )
+    else:
+        np.random.seed(random_state)
+        init_coords = np.random.random((adjacency.shape[0], 2))
+    
+    # Create ForceAtlas2 instance with fa2_modified
+    forceatlas2 = ForceAtlas2(
+        # Behavior alternatives
+        outboundAttractionDistribution=False,  # Dissuade hubs
+        linLogMode=False,  # NOT IMPLEMENTED
+        adjustSizes=False,  # Prevent overlap (NOT IMPLEMENTED)
+        edgeWeightInfluence=1.0,
+        # Performance
+        jitterTolerance=1.0,  # Tolerance
+        barnesHutOptimize=True,
+        barnesHutTheta=1.2,
+        multiThreaded=False,  # NOT IMPLEMENTED
+        # Tuning
+        scalingRatio=2.0,
+        strongGravityMode=False,
+        gravity=1.0,
+        # Log
+        verbose=False,
+    )
+    
+    # Run ForceAtlas2
+    positions = forceatlas2.forceatlas2(
+        adjacency, pos=init_coords, iterations=500
+    )
+    positions = np.array(positions)
+    
+    # Store results in adata
+    adata.uns["draw_graph"] = {}
+    adata.uns["draw_graph"]["params"] = dict(layout=layout, random_state=random_state)
+    key_added = f"X_draw_graph_{key_added_ext or layout}"
+    
+    adata.obsm[key_added] = positions
+    
+    return adata if copy else None
 
 
 def run_dpt(pca_csv, cluster_csv, umap_csv, out_prefix="output", rev: str | None = None, root_cluster: str | None = None):
@@ -118,8 +202,9 @@ def run_dpt(pca_csv, cluster_csv, umap_csv, out_prefix="output", rev: str | None
     # positions in adata.uns['paga']['pos'] (needed to draw_graph)
     _ = sc.pl.paga(adata, color='leiden', add_pos=True, show=False)
     # Recompute the embedding using PAGA-initialization
+    # fa2 package is very hard to install, so we use instead fa2_modified and a modified function to draw_graph
     print("📊 Drawing PAGA graph...")
-    sc.tl.draw_graph(adata, init_pos='paga')
+    draw_graph_fa2_modified(adata, layout='fa2_modified', init_pos='paga')
     # The positions of the PAGA nodes (one per cluster/group)
     # adata.uns['paga']['pos']
 
