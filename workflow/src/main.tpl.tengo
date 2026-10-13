@@ -133,16 +133,24 @@ wf.body(func(args) {
 
 	inputSpec := principalComponents.spec
 
-	// Set default conversion memory and CPU
+	// Set default memory and CPU for the cluster/UMAP exports and the result imports:
+	// those carry one row per cell, orders of magnitude smaller than the embeddings matrix.
 	defaultConvMem := "16GiB" // @TODO: set based on the size of the input
 	defaultConvCpu := 1       // @TODO: set based on the size of the input
 
-	csvEmbeddings := xsv.exportFrame([principalComponents], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
+	// The embeddings export is the heaviest conversion in the block: the long-format
+	// pcvalue p-column holds one row per (cell, principal component) pair, which reaches
+	// tens of millions of rows on real datasets. Parquet keeps it columnar, instead of
+	// paying CSV text encoding for two high-cardinality string columns.
+	embeddingsConvMem := "32GiB" // @TODO: set based on the size of the input
+	embeddingsConvCpu := 4       // @TODO: set based on the size of the input
+
+	embeddingsParquet := xsv.exportFrame([principalComponents], "parquet", { mem: embeddingsConvMem, cpu: embeddingsConvCpu })
 	csvClusters := xsv.exportFrame([clusterAnnotation], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
 	csvUmapCoordinates := xsv.exportFrame([umapCoordinates1, umapCoordinates2], "csv", { mem: defaultConvMem, cpu: defaultConvCpu })
 
 	pseudotimeInferenceRender := render.create(pseudotimeInferenceTpl, {
-		csvEmbeddings: csvEmbeddings,
+		embeddingsParquet: embeddingsParquet,
 		csvClusters: csvClusters,
 		csvUmapCoordinates: csvUmapCoordinates,
 		rootCluster: args.rootCluster,

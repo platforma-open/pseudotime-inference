@@ -41,13 +41,13 @@ def _detect_pc_value_col(df: pd.DataFrame) -> str:
         return 'Principal Component Value'
     if 'Principal Component Value - Harmony corrected' in df.columns:
         return 'Principal Component Value - Harmony corrected'
-    raise KeyError("PCA CSV must contain 'Principal Component Value' or 'Principal Component Value - Harmony corrected'.")
+    raise KeyError("PCA data must contain 'Principal Component Value' or 'Principal Component Value - Harmony corrected'.")
 
 
-def run_dpt(pca_csv, cluster_csv, umap_csv, out_prefix="output", rev: str | None = None, root_cluster: str | None = None):
+def run_dpt(pca_parquet, cluster_csv, umap_csv, out_prefix="output", rev: str | None = None, root_cluster: str | None = None):
     # Load PCA data
     print("📥 Reading PCA data...")
-    pca_df = pd.read_csv(pca_csv)
+    pca_df = pd.read_parquet(pca_parquet)
     sample_col_pca = _find_axis(pca_df, ['Sample', 'SampleId'])
     cell_col_pca = _find_axis(pca_df, ['Cell Barcode', 'Cell ID', 'CellId'])
     pc_value_col = _detect_pc_value_col(pca_df)
@@ -172,7 +172,7 @@ def run_dpt(pca_csv, cluster_csv, umap_csv, out_prefix="output", rev: str | None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run pseudotime inference using Scanpy + DPT from PCA embeddings and clusters.")
-    parser.add_argument('--pca_csv', required=True, help='CSV file with PCA data.')
+    parser.add_argument('--pca_parquet', required=True, help='Parquet file with long-format PCA data.')
     parser.add_argument('--cluster_csv', required=True, help='CSV file with Leiden clusters.')
     parser.add_argument('--umap_csv', required=True, help='CSV file with UMAP coordinates.')
     parser.add_argument('--out_prefix', default='output', help='Prefix for output files.')
@@ -181,4 +181,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    run_dpt(args.pca_csv, args.cluster_csv, args.umap_csv, args.out_prefix, args.rev, args.root_cluster)
+    run_dpt(args.pca_parquet, args.cluster_csv, args.umap_csv, args.out_prefix, args.rev, args.root_cluster)

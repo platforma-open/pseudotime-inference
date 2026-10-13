@@ -6,7 +6,7 @@ self.defineOutputs("pseudotimeCsv", "pagaGraphCsv", "umapDensityCsv")
 
 self.body(func(args) {
     // Input parameters
-    csvEmbeddings := args.csvEmbeddings
+    embeddingsParquet := args.embeddingsParquet
     csvClusters := args.csvClusters
     csvUmapCoordinates := args.csvUmapCoordinates
     rootCluster := args.rootCluster
@@ -18,10 +18,10 @@ self.body(func(args) {
         software(assets.importSoftware("@platforma-open/milaboratories.pseudotime-inference.software:pseudotime-paga")).
         mem(mem).
         cpu(cpu).
-        addFile("embeddings.csv", csvEmbeddings).
+        addFile("embeddings.parquet", embeddingsParquet).
         addFile("clusters.csv", csvClusters).
         addFile("umap_coordinates.csv", csvUmapCoordinates).
-        arg("--pca_csv").arg("embeddings.csv").
+        arg("--pca_parquet").arg("embeddings.parquet").
         arg("--cluster_csv").arg("clusters.csv").
         arg("--umap_csv").arg("umap_coordinates.csv").
         arg("--out_prefix").arg("paga")

@@ -1,117 +1,83 @@
-import type { GraphMakerState } from '@milaboratories/graph-maker';
+import { kind } from "@platforma-open/milaboratories.pseudotime-inference.kind";
 import type {
   InferOutputsType,
   PColumnIdAndSpec,
   PFrameHandle,
-  PlRef,
-} from '@platforma-sdk/model';
+  TreeNodeAccessor,
+} from "@platforma-sdk/model";
 import {
-  BlockModel,
+  BlockModelV3,
   createPFrameForGraphs,
   isPColumn,
   isPColumnSpec,
-} from '@platforma-sdk/model';
+} from "@platforma-sdk/model";
+import { blockDataModel } from "./dataModel";
+import type { BlockArgs } from "./types";
 
-export type UiState = {
-  graphStateUMAP: GraphMakerState;
-  graphStateTSNE: GraphMakerState;
-  graphStatePAGA: GraphMakerState;
-  graphStateViolin: GraphMakerState;
-  graphStateScatterExpression: GraphMakerState;
-  graphStateScatterDensity: GraphMakerState;
-  anchorColumn?: PlRef;
-};
+export { blockDataModel } from "./dataModel";
+export type { BlockArgs, BlockData, BlockUiState } from "./types";
 
-export type BlockArgs = {
-  clusterAnnotationRef?: PlRef;
-  title?: string;
-  rootCluster?: string;
-};
+export const platforma = BlockModelV3.create({ dataModel: blockDataModel, kind })
 
-export const model = BlockModel.create()
+  // The run gate. Throwing shows the reason in the UI. Same check as the V1
+  // `.argsValid`: a cluster annotation must be selected.
+  .args<BlockArgs>((data): BlockArgs => {
+    if (data.clusterAnnotationRef === undefined) {
+      throw new Error("Select a cluster annotation");
+    }
 
-  .withArgs<BlockArgs>({})
-
-  .argsValid((ctx) => {
-    return ctx.args.clusterAnnotationRef !== undefined;
+    return {
+      clusterAnnotationRef: data.clusterAnnotationRef,
+      title: data.title,
+      rootCluster: data.rootCluster,
+    };
   })
 
-  .withUiState<UiState>({
-    graphStateUMAP: {
-      title: 'UMAP',
-      template: 'dots',
-      currentTab: 'settings',
-    },
-    graphStateTSNE: {
-      title: 'tSNE',
-      template: 'dots',
-      currentTab: null,
-    },
-    graphStatePAGA: {
-      title: 'PAGA graph',
-      template: 'dots',
-      currentTab: null,
-    },
-    graphStateViolin: {
-      title: 'Cluster Pseudotime',
-      template: 'violin',
-      currentTab: null,
-    },
-    graphStateScatterExpression: {
-      title: 'Gene Expression',
-      template: 'dots',
-      currentTab: null,
-    },
-    graphStateScatterDensity: {
-      title: 'Cell Density',
-      template: 'dots',
-      currentTab: null,
-    },
-  })
+  // Inverse of the kind's init-params contract: the two settings a user picks
+  // by hand. `title` is left out — nothing in the UI sets it.
+  .templateParams((data) => ({
+    clusterAnnotationRef: data.clusterAnnotationRef,
+    rootCluster: data.rootCluster,
+  }))
 
-  .output('clusterAnnotationOptions', (ctx) =>
-    ctx.resultPool.getOptions((spec) => isPColumnSpec(spec)
-      && spec.name === 'pl7.app/rna-seq/leidencluster'
-    , { includeNativeLabel: true, addLabelAsSuffix: true }),
+  .output("clusterAnnotationOptions", (ctx) =>
+    ctx.resultPool.getOptions(
+      (spec) => isPColumnSpec(spec) && spec.name === "pl7.app/rna-seq/leidencluster",
+      { includeNativeLabel: true, addLabelAsSuffix: true },
+    ),
   )
 
-  .output('selectedClusterPf', (ctx) => {
-    if (ctx.args.clusterAnnotationRef === undefined) return undefined;
-    const pCols = ctx.resultPool.getPColumnByRef(ctx.args.clusterAnnotationRef);
+  .output("selectedClusterPf", (ctx) => {
+    if (ctx.data.clusterAnnotationRef === undefined) return undefined;
+    const pCols = ctx.resultPool.getPColumnByRef(ctx.data.clusterAnnotationRef);
     if (pCols === undefined) return undefined;
     return ctx.createPFrame([pCols]);
   })
 
-  .output('anchorSpec', (ctx) => {
+  .output("anchorSpec", (ctx) => {
     // return the Reference of the p-column selected as input dataset in Settings
-    if (!ctx.uiState?.anchorColumn) return undefined;
+    if (!ctx.data.anchorColumn) return undefined;
 
     // Get the specs of that selected p-column
-    const anchorColumn = ctx.resultPool.getPColumnByRef(ctx.uiState?.anchorColumn);
-    const anchorSpec = anchorColumn?.spec;
-    if (!anchorSpec) {
-      console.error('Anchor spec is undefined or is not PColumnSpec', anchorSpec);
-      return undefined;
-    }
-
-    return anchorSpec;
+    const anchorColumn = ctx.resultPool.getPColumnByRef(ctx.data.anchorColumn);
+    return anchorColumn?.spec;
   })
 
-  .output('UMAPPf', (ctx): PFrameHandle | undefined => {
-    const pCols
-      = ctx.resultPool
-        .getData()
-        .entries.map((c) => c.obj)
-        .filter(isPColumn)
-        .filter((col) => {
-          return col.spec.name === 'pl7.app/rna-seq/umap1'
-            || col.spec.name === 'pl7.app/rna-seq/umap2'
-            || col.spec.name === 'pl7.app/rna-seq/umap3';
-        });
+  .outputWithStatus("UMAPPf", (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.resultPool
+      .getData()
+      .entries.map((c) => c.obj)
+      .filter(isPColumn<TreeNodeAccessor>)
+      .filter((col) => {
+        return (
+          col.spec.name === "pl7.app/rna-seq/umap1" ||
+          col.spec.name === "pl7.app/rna-seq/umap2" ||
+          col.spec.name === "pl7.app/rna-seq/umap3"
+        );
+      });
 
     // enriching with leiden clusters data
-    const upstream
-      = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+    const upstream = ctx.outputs?.resolve("pseudotimeScores")?.getPColumns();
 
     if (upstream === undefined) {
       return undefined;
@@ -120,21 +86,21 @@ export const model = BlockModel.create()
     return ctx.createPFrame([...pCols, ...upstream]);
   })
 
-  .output('tSNEPf', (ctx): PFrameHandle | undefined => {
-    const pCols
-      = ctx.resultPool
-        .getData()
-        .entries.map((c) => c.obj)
-        .filter(isPColumn)
-        .filter((col) => {
-          return col.spec.name === 'pl7.app/rna-seq/tsne1'
-            || col.spec.name === 'pl7.app/rna-seq/tsne2'
-            || col.spec.name === 'pl7.app/rna-seq/tsne3';
-        });
+  .outputWithStatus("tSNEPf", (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.resultPool
+      .getData()
+      .entries.map((c) => c.obj)
+      .filter(isPColumn<TreeNodeAccessor>)
+      .filter((col) => {
+        return (
+          col.spec.name === "pl7.app/rna-seq/tsne1" ||
+          col.spec.name === "pl7.app/rna-seq/tsne2" ||
+          col.spec.name === "pl7.app/rna-seq/tsne3"
+        );
+      });
 
     // enriching with leiden clusters data
-    const upstream
-      = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+    const upstream = ctx.outputs?.resolve("pseudotimeScores")?.getPColumns();
 
     if (upstream === undefined) {
       return undefined;
@@ -143,13 +109,11 @@ export const model = BlockModel.create()
     return ctx.createPFrame([...pCols, ...upstream]);
   })
 
-  .output('PAGAPf', (ctx): PFrameHandle | undefined => {
-    const pCols
-        = ctx.outputs?.resolve('pagaGraph')?.getPColumns();
+  .outputWithStatus("PAGAPf", (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.outputs?.resolve("pagaGraph")?.getPColumns();
 
     // enriching with leiden clusters data
-    const upstream
-      = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+    const upstream = ctx.outputs?.resolve("pseudotimeScores")?.getPColumns();
 
     if (upstream === undefined || pCols === undefined) {
       return undefined;
@@ -158,22 +122,21 @@ export const model = BlockModel.create()
     return ctx.createPFrame([...pCols, ...upstream]);
   })
 
-  .output('plotPcols', (ctx) => {
-    const pCols
-      = ctx.resultPool
-        .getData()
-        .entries.map((c) => c.obj)
-        .filter(isPColumn)
-        .filter((col) => {
-          return (col.spec.name.slice(0, -1) === 'pl7.app/rna-seq/tsne'
-            || col.spec.name.slice(0, -1) === 'pl7.app/rna-seq/umap');
-        });
+  .output("plotPcols", (ctx) => {
+    const pCols = ctx.resultPool
+      .getData()
+      .entries.map((c) => c.obj)
+      .filter(isPColumn<TreeNodeAccessor>)
+      .filter((col) => {
+        return (
+          col.spec.name.slice(0, -1) === "pl7.app/rna-seq/tsne" ||
+          col.spec.name.slice(0, -1) === "pl7.app/rna-seq/umap"
+        );
+      });
 
     // enriching with leiden clusters data
-    const upstream1
-      = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
-    const upstream2
-      = ctx.outputs?.resolve('pagaGraph')?.getPColumns();
+    const upstream1 = ctx.outputs?.resolve("pseudotimeScores")?.getPColumns();
+    const upstream2 = ctx.outputs?.resolve("pagaGraph")?.getPColumns();
 
     if (upstream1 === undefined || upstream2 === undefined) {
       return undefined;
@@ -184,21 +147,18 @@ export const model = BlockModel.create()
         ({
           columnId: c.id,
           spec: c.spec,
-        } satisfies PColumnIdAndSpec),
+        }) satisfies PColumnIdAndSpec,
     );
   })
 
-  .output('violinPcols', (ctx) => {
+  .output("violinPcols", (ctx) => {
     // Get specifically the clusters pcol selected by user in settings
-    const clusterAnchor = ctx.args.clusterAnnotationRef;
-    if (clusterAnchor === undefined)
-      return undefined;
+    const clusterAnchor = ctx.data.clusterAnnotationRef;
+    if (clusterAnchor === undefined) return undefined;
     const clusterPcol = ctx.resultPool.getPColumnByRef(clusterAnchor);
-    if (clusterPcol === undefined)
-      return undefined;
+    if (clusterPcol === undefined) return undefined;
 
-    const upstream
-      = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+    const upstream = ctx.outputs?.resolve("pseudotimeScores")?.getPColumns();
 
     if (upstream === undefined) {
       return undefined;
@@ -209,24 +169,23 @@ export const model = BlockModel.create()
         ({
           columnId: c.id,
           spec: c.spec,
-        } satisfies PColumnIdAndSpec),
+        }) satisfies PColumnIdAndSpec,
     );
   })
 
-  .output('violinPf', (ctx): PFrameHandle | undefined => {
-    const pCols
-      = ctx.resultPool
-        .getData()
-        .entries.map((c) => c.obj)
-        .filter(isPColumn)
-        .filter((col) => {
-          return col.spec.name === 'pl7.app/rna-seq/leidencluster'
-            || col.spec.name === 'pl7.app/metadata';
-        });
+  .outputWithStatus("violinPf", (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.resultPool
+      .getData()
+      .entries.map((c) => c.obj)
+      .filter(isPColumn<TreeNodeAccessor>)
+      .filter((col) => {
+        return (
+          col.spec.name === "pl7.app/rna-seq/leidencluster" || col.spec.name === "pl7.app/metadata"
+        );
+      });
 
     // enriching with leiden clusters data
-    const upstream
-      = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
+    const upstream = ctx.outputs?.resolve("pseudotimeScores")?.getPColumns();
 
     if (upstream === undefined) {
       return undefined;
@@ -235,10 +194,10 @@ export const model = BlockModel.create()
     return ctx.createPFrame([...pCols, ...upstream]);
   })
 
-  .output('scatterplotPf', (ctx): PFrameHandle | undefined => {
+  .outputWithStatus("scatterplotPf", (ctx): PFrameHandle | undefined => {
     // Get pseudotime scores
-    const pseudotimeCols = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
-    const umapDensityCols = ctx.outputs?.resolve('umapDensity')?.getPColumns();
+    const pseudotimeCols = ctx.outputs?.resolve("pseudotimeScores")?.getPColumns();
+    const umapDensityCols = ctx.outputs?.resolve("umapDensity")?.getPColumns();
 
     if (pseudotimeCols === undefined || umapDensityCols === undefined) {
       return undefined;
@@ -247,20 +206,26 @@ export const model = BlockModel.create()
     return createPFrameForGraphs(ctx, [...pseudotimeCols, ...umapDensityCols]);
   })
 
-  .output('scatterplotPcols', (ctx) => {
-    const pseudotimeCols = ctx.outputs?.resolve('pseudotimeScores')?.getPColumns();
-    const umapDensityCols = ctx.outputs?.resolve('umapDensity')?.getPColumns();
+  .output("scatterplotPcols", (ctx) => {
+    const pseudotimeCols = ctx.outputs?.resolve("pseudotimeScores")?.getPColumns();
+    const umapDensityCols = ctx.outputs?.resolve("umapDensity")?.getPColumns();
 
     const geneExpressionCols = ctx.resultPool
       .getData()
       .entries.map((c) => c.obj)
-      .filter(isPColumn)
+      .filter(isPColumn<TreeNodeAccessor>)
       .filter((col) => {
-        return col.spec.name === 'pl7.app/rna-seq/countMatrix'
-          || col.spec.name === 'pl7.app/rna-seq/leidencluster';
+        return (
+          col.spec.name === "pl7.app/rna-seq/countMatrix" ||
+          col.spec.name === "pl7.app/rna-seq/leidencluster"
+        );
       });
 
-    if (pseudotimeCols === undefined || geneExpressionCols.length === 0 || umapDensityCols === undefined) {
+    if (
+      pseudotimeCols === undefined ||
+      geneExpressionCols.length === 0 ||
+      umapDensityCols === undefined
+    ) {
       return undefined;
     }
 
@@ -269,25 +234,23 @@ export const model = BlockModel.create()
         ({
           columnId: c.id,
           spec: c.spec,
-        } satisfies PColumnIdAndSpec),
+        }) satisfies PColumnIdAndSpec,
     );
   })
 
-  .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
+  .output("isRunning", (ctx) => ctx.outputs?.getIsReadyOrError() === false)
 
-  .sections((_ctx) => ([
-    { type: 'link', href: '/', label: 'UMAP' },
-    { type: 'link', href: '/violin', label: 'Cluster Pseudotime' },
+  .sections((_ctx) => [
+    { type: "link", href: "/", label: "UMAP" },
+    { type: "link", href: "/violin", label: "Cluster Pseudotime" },
     // { type: 'link', href: '/scatterExpression', label: 'Gene Expression' },
-    { type: 'link', href: '/scatterDensity', label: 'Cell Density' },
-  ]))
+    { type: "link", href: "/scatterDensity", label: "Cell Density" },
+  ])
 
   .title((ctx) =>
-    ctx.args.title
-      ? `Pseudotime Inference - ${ctx.args.title}`
-      : 'Pseudotime Inference',
+    ctx.data.title ? `Pseudotime Inference - ${ctx.data.title}` : "Pseudotime Inference",
   )
 
   .done();
 
-export type BlockOutputs = InferOutputsType<typeof model>;
+export type BlockOutputs = InferOutputsType<typeof platforma>;
