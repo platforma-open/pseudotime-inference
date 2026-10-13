@@ -1,36 +1,37 @@
 <script setup lang="ts">
-import type { PredefinedGraphOption } from '@milaboratories/graph-maker';
-import { GraphMaker } from '@milaboratories/graph-maker';
-import '@milaboratories/graph-maker/styles';
-import { PlBlockPage } from '@platforma-sdk/ui-vue';
-import { computed } from 'vue';
-import { useApp } from '../app';
+import type { PredefinedGraphOption } from "@milaboratories/graph-maker";
+import { GraphMaker } from "@milaboratories/graph-maker";
+import "@milaboratories/graph-maker/styles";
+import { PlBlockPage } from "@platforma-sdk/ui-vue";
+import { computed } from "vue";
+import { useApp } from "../app";
 
 const app = useApp();
 
-const defaultOptions = computed((): PredefinedGraphOption<'scatterplot-umap'>[] => {
+const defaultOptions = computed((): PredefinedGraphOption<"scatterplot-umap">[] => {
   const pcols = app.model.outputs.scatterplotPcols;
-  if (!pcols || pcols.length === 0)
-    return [];
+  if (!pcols || pcols.length === 0) return [];
 
-  const pseudotimeCol = pcols.findIndex((p) => p.spec.name === 'pl7.app/rna-seq/pseudotimedpt');
-  const countCol = pcols.findIndex((p) => p.spec.name === 'pl7.app/rna-seq/countMatrix'
-    && p.spec.domain?.['pl7.app/rna-seq/normalized'] === 'true');
+  const pseudotimeCol = pcols.findIndex((p) => p.spec.name === "pl7.app/rna-seq/pseudotimedpt");
+  const countCol = pcols.findIndex(
+    (p) =>
+      p.spec.name === "pl7.app/rna-seq/countMatrix" &&
+      p.spec.domain?.["pl7.app/rna-seq/normalized"] === "true",
+  );
 
-  if (pseudotimeCol === -1 || countCol === -1)
-    return [];
+  if (pseudotimeCol === -1 || countCol === -1) return [];
 
   return [
     {
-      inputName: 'x',
+      inputName: "x",
       selectedSource: pcols[pseudotimeCol].spec,
     },
     {
-      inputName: 'y',
+      inputName: "y",
       selectedSource: pcols[countCol].spec,
     },
     {
-      inputName: 'grouping',
+      inputName: "grouping",
       selectedSource: pcols[pseudotimeCol].spec,
     },
     // Cell ID
@@ -39,13 +40,13 @@ const defaultOptions = computed((): PredefinedGraphOption<'scatterplot-umap'>[] 
     //   selectedSource: pcols[pseudotimeCol].spec.axesSpec[1],
     // },
     {
-      inputName: 'filters',
+      inputName: "filters",
       selectedSource: pcols[countCol].spec.axesSpec[2],
     },
   ];
 });
 
-const key = computed(() => defaultOptions.value ? JSON.stringify(defaultOptions.value) : '');
+const key = computed(() => (defaultOptions.value ? JSON.stringify(defaultOptions.value) : ""));
 </script>
 
 <template>

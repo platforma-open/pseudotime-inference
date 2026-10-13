@@ -1,27 +1,32 @@
 <script setup lang="ts">
-import type { PredefinedGraphOption } from '@milaboratories/graph-maker';
-import { GraphMaker } from '@milaboratories/graph-maker';
-import '@milaboratories/graph-maker/styles';
-import { PFrameImpl, type PColumnIdAndSpec } from '@platforma-sdk/model';
-import { PlAccordionSection, PlBlockPage, PlDropdownRef, PlTabs, useWatchFetch } from '@platforma-sdk/ui-vue';
-import { computed, reactive } from 'vue';
-import { useApp } from '../app';
+import type { PredefinedGraphOption } from "@milaboratories/graph-maker";
+import { GraphMaker } from "@milaboratories/graph-maker";
+import "@milaboratories/graph-maker/styles";
+import { PFrameImpl, type PColumnIdAndSpec } from "@platforma-sdk/model";
+import {
+  PlAccordionSection,
+  PlBlockPage,
+  PlDropdownRef,
+  PlTabs,
+  useWatchFetch,
+} from "@platforma-sdk/ui-vue";
+import { computed, reactive } from "vue";
+import { useApp } from "../app";
 
 const app = useApp();
 
 const data = reactive({
-  currentTab: 'umap',
+  currentTab: "umap",
 });
 
 const tabOptions = [
-  { label: 'UMAP', value: 'umap' },
-  { label: 't-SNE', value: 'tsne' },
-  { label: 'PAGA graph', value: 'paga' },
+  { label: "UMAP", value: "umap" },
+  { label: "t-SNE", value: "tsne" },
+  { label: "PAGA graph", value: "paga" },
 ];
 
 function getIndex(name: string, pcols: PColumnIdAndSpec[]): number {
-  return pcols.findIndex((p) => (p.spec.name === name
-  ));
+  return pcols.findIndex((p) => p.spec.name === name);
 }
 
 /* Function to create default options according to the selected tab */
@@ -29,28 +34,26 @@ function createDefaultOptions(
   pcols: PColumnIdAndSpec[] | undefined,
   coord1Name: string,
   coord2Name: string,
-): PredefinedGraphOption<'scatterplot-umap'>[] | undefined {
-  if (!pcols || pcols.length === 0)
-    return undefined;
+): PredefinedGraphOption<"scatterplot-umap">[] | undefined {
+  if (!pcols || pcols.length === 0) return undefined;
 
   const coord1Index = getIndex(coord1Name, pcols);
   const coord2Index = getIndex(coord2Name, pcols);
-  const pseudotimeIndex = getIndex('pl7.app/rna-seq/pseudotimedpt', pcols);
+  const pseudotimeIndex = getIndex("pl7.app/rna-seq/pseudotimedpt", pcols);
 
-  if (coord1Index === -1 || coord2Index === -1)
-    return undefined;
+  if (coord1Index === -1 || coord2Index === -1) return undefined;
 
-  const defaults: PredefinedGraphOption<'scatterplot-umap'>[] = [
+  const defaults: PredefinedGraphOption<"scatterplot-umap">[] = [
     {
-      inputName: 'x',
+      inputName: "x",
       selectedSource: pcols[coord1Index].spec,
     },
     {
-      inputName: 'y',
+      inputName: "y",
       selectedSource: pcols[coord2Index].spec,
     },
     {
-      inputName: 'grouping',
+      inputName: "grouping",
       selectedSource: pcols[pseudotimeIndex].spec,
     },
   ];
@@ -58,24 +61,24 @@ function createDefaultOptions(
   return defaults;
 }
 
-const defaultOptions = computed((): PredefinedGraphOption<'scatterplot-umap'>[] | undefined => {
-  if (data.currentTab === 'umap') {
+const defaultOptions = computed((): PredefinedGraphOption<"scatterplot-umap">[] | undefined => {
+  if (data.currentTab === "umap") {
     return createDefaultOptions(
       app.model.outputs.plotPcols,
-      'pl7.app/rna-seq/umap1',
-      'pl7.app/rna-seq/umap2',
+      "pl7.app/rna-seq/umap1",
+      "pl7.app/rna-seq/umap2",
     );
-  } else if (data.currentTab === 'tsne') {
+  } else if (data.currentTab === "tsne") {
     return createDefaultOptions(
       app.model.outputs.plotPcols,
-      'pl7.app/rna-seq/tsne1',
-      'pl7.app/rna-seq/tsne2',
+      "pl7.app/rna-seq/tsne1",
+      "pl7.app/rna-seq/tsne2",
     );
-  } else if (data.currentTab === 'paga') {
+  } else if (data.currentTab === "paga") {
     return createDefaultOptions(
       app.model.outputs.plotPcols,
-      'pl7.app/rna-seq/graph1',
-      'pl7.app/rna-seq/graph2',
+      "pl7.app/rna-seq/graph1",
+      "pl7.app/rna-seq/graph2",
     );
   }
   return undefined;
@@ -83,40 +86,51 @@ const defaultOptions = computed((): PredefinedGraphOption<'scatterplot-umap'>[] 
 
 /* Modify graph state, pframe and default options based on the selected tab */
 const graphState = computed({
-  get: () => data.currentTab === 'umap' ? app.model.ui.graphStateUMAP : data.currentTab === 'tsne' ? app.model.ui.graphStateTSNE : app.model.ui.graphStatePAGA,
+  get: () =>
+    data.currentTab === "umap"
+      ? app.model.ui.graphStateUMAP
+      : data.currentTab === "tsne"
+        ? app.model.ui.graphStateTSNE
+        : app.model.ui.graphStatePAGA,
   set: (value) => {
-    if (data.currentTab === 'umap')
-      app.model.ui.graphStateUMAP = value;
-    else
-      app.model.ui.graphStateTSNE = value;
+    if (data.currentTab === "umap") app.model.ui.graphStateUMAP = value;
+    else app.model.ui.graphStateTSNE = value;
   },
 });
 
-const pFrame = computed(() => data.currentTab === 'umap' ? app.model.outputs.UMAPPf : data.currentTab === 'tsne' ? app.model.outputs.tSNEPf : app.model.outputs.PAGAPf);
+const pFrame = computed(() =>
+  data.currentTab === "umap"
+    ? app.model.outputs.UMAPPf
+    : data.currentTab === "tsne"
+      ? app.model.outputs.tSNEPf
+      : app.model.outputs.PAGAPf,
+);
 
 // Get cluster IDs
-const clusterOptions = useWatchFetch(() => app.model.outputs.selectedClusterPf, async (pframeHandle) => {
-  if (!pframeHandle) {
-    return undefined;
-  }
-  // Get ID of first pcolumn in the pframe (the only one we will access)
-  const pFrame = new PFrameImpl(pframeHandle);
-  const list = await pFrame.listColumns();
-  const id = list?.[0].columnId;
-  if (!id) {
-    return undefined;
-  }
-  // Get unique values of that first pcolumn
-  const response = await pFrame.getUniqueValues({ columnId: id, filters: [], limit: 1000000 });
-  if (!response) {
-    return undefined;
-  }
-  if (response.values.data.length === 0) {
-    return undefined;
-  }
-  return [...response.values.data].map((v) => ({ value: String(v), label: String(v) }));
-});
-
+const clusterOptions = useWatchFetch(
+  () => app.model.outputs.selectedClusterPf,
+  async (pframeHandle) => {
+    if (!pframeHandle) {
+      return undefined;
+    }
+    // Get ID of first pcolumn in the pframe (the only one we will access)
+    const pFrame = new PFrameImpl(pframeHandle);
+    const list = await pFrame.listColumns();
+    const id = list?.[0].columnId;
+    if (!id) {
+      return undefined;
+    }
+    // Get unique values of that first pcolumn
+    const response = await pFrame.getUniqueValues({ columnId: id, filters: [], limit: 1000000 });
+    if (!response) {
+      return undefined;
+    }
+    if (response.values.data.length === 0) {
+      return undefined;
+    }
+    return [...response.values.data].map((v) => ({ value: String(v), label: String(v) }));
+  },
+);
 </script>
 
 <template>
@@ -129,7 +143,11 @@ const clusterOptions = useWatchFetch(() => app.model.outputs.selectedClusterPf, 
       :default-options="defaultOptions"
     >
       <template #titleLineSlot>
-        <PlTabs v-model="data.currentTab" :options="tabOptions" :style="{ display: 'flex', justifyContent: 'flex-end' }"/>
+        <PlTabs
+          v-model="data.currentTab"
+          :options="tabOptions"
+          :style="{ display: 'flex', justifyContent: 'flex-end' }"
+        />
       </template>
       <template #settingsSlot>
         <PlDropdownRef

@@ -1,32 +1,32 @@
 <script setup lang="ts">
-import '@milaboratories/graph-maker/styles';
-import { PlBlockPage } from '@platforma-sdk/ui-vue';
-import { computed } from 'vue';
-import { useApp } from '../app';
+import "@milaboratories/graph-maker/styles";
+import { PlBlockPage } from "@platforma-sdk/ui-vue";
+import { computed } from "vue";
+import { useApp } from "../app";
 
-import type { PredefinedGraphOption } from '@milaboratories/graph-maker';
-import { GraphMaker } from '@milaboratories/graph-maker';
+import type { PredefinedGraphOption } from "@milaboratories/graph-maker";
+import { GraphMaker } from "@milaboratories/graph-maker";
 
 const app = useApp();
 
-const defaultOptions = computed((): PredefinedGraphOption<'discrete'>[] => {
+const defaultOptions = computed((): PredefinedGraphOption<"discrete">[] => {
   const pcols = app.model.outputs.violinPcols;
-  if (!pcols || pcols.length === 0)
-    return [];
+  if (!pcols || pcols.length === 0) return [];
 
-  const yIndex = pcols.findIndex((p) => p.spec.name === 'pl7.app/rna-seq/pseudotimedpt');
-  const primaryGroupingIndex = pcols.findIndex((p) => p.spec.name === 'pl7.app/rna-seq/leidencluster');
+  const yIndex = pcols.findIndex((p) => p.spec.name === "pl7.app/rna-seq/pseudotimedpt");
+  const primaryGroupingIndex = pcols.findIndex(
+    (p) => p.spec.name === "pl7.app/rna-seq/leidencluster",
+  );
 
-  if (yIndex === -1 || primaryGroupingIndex === -1)
-    return [];
+  if (yIndex === -1 || primaryGroupingIndex === -1) return [];
 
   return [
     {
-      inputName: 'y',
+      inputName: "y",
       selectedSource: pcols[yIndex].spec,
     },
     {
-      inputName: 'primaryGrouping',
+      inputName: "primaryGrouping",
       selectedSource: pcols[primaryGroupingIndex].spec,
     },
   ];
