@@ -1,32 +1,25 @@
 import { assertParamsObject, defineBlockKind } from "@platforma-sdk/block-kind";
+import type { PlRef } from "@platforma-sdk/model";
+import { isPlRef } from "@platforma-sdk/model";
 import { name, version } from "../package.json" with { type: "json" };
 
 /**
- * This block's init-params contract — the shape a block of this kind receives
- * at creation, and exactly what a project template serializes for it.
+ * This block's init-params contract — the two settings a user picks by hand:
+ * the cluster annotation the trajectory is built on, and the cluster DPT
+ * starts from.
  *
- * Deliberately empty: this block takes no author-supplied init params today.
- * Everything it needs is chosen in the UI after creation — the cluster
- * annotation comes from a result-pool ref the user picks, and the root cluster
- * from that column's values. Neither can be seeded from a template file while
- * the model is still on the V1 API, which has no `init()` to receive params.
- */
-export type BlockParams = Record<string, never>;
-
-/**
- * The same contract at runtime, for params that arrive from a template file
- * rather than from typed code.
+ * `title` is absent. Nothing in the UI sets it, so a template has nothing of
+ * its own to carry there.
  *
- * The contract names no fields, so there is nothing to read and nothing to
- * validate beyond the value being an object at all. Keys a template supplies
- * anyway are dropped by not being read. The return type holds this in step: the
- * moment `BlockParams` declares a required field, `return {}` stops compiling.
+ * Both fields are optional. A block with nothing selected is ordinary state the
+ * UI reaches — it is exactly what a freshly created block looks like — and the
+ * projection hands that state back untouched, so a required field would make
+ * this block export a file its own kind refuses.
  */
-function parseInitializationParams(value: unknown): BlockParams {
-  assertParamsObject(value);
-
-  return {};
-}
+export type BlockParams = {
+  clusterAnnotationRef?: PlRef;
+  rootCluster?: string;
+};
 
 // Identity (`name`/`version`) comes from this package's own `package.json`, so
 // the on-wire `{name}@{version}` reference can never drift from what npm
@@ -36,3 +29,23 @@ export const kind = defineBlockKind<BlockParams>({
   version,
   parseInitializationParams,
 });
+
+// Internals
+
+/** The same contract at runtime, for params arriving from a template file rather than typed code. */
+function parseInitializationParams(value: unknown): BlockParams {
+  assertParamsObject(value);
+
+  const { clusterAnnotationRef, rootCluster } = value;
+
+  if (clusterAnnotationRef !== undefined && !isPlRef(clusterAnnotationRef)) {
+    throw new Error(
+      "'clusterAnnotationRef' must be a reference to an upstream column, written as { __isRef: true, blockId, name }.",
+    );
+  }
+  if (rootCluster !== undefined && typeof rootCluster !== "string") {
+    throw new Error("'rootCluster' must be a string: one value of the cluster annotation column.");
+  }
+
+  return { clusterAnnotationRef, rootCluster };
+}

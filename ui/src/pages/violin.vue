@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import "@milaboratories/graph-maker/styles";
 import { PlBlockPage } from "@platforma-sdk/ui-vue";
 import { computed } from "vue";
 import { useApp } from "../app";
@@ -36,11 +35,10 @@ const defaultOptions = computed((): PredefinedGraphOption<"discrete">[] => {
 <template>
   <PlBlockPage>
     <GraphMaker
-      v-model="app.model.ui.graphStateViolin"
+      v-model="app.model.data.graphStateViolin"
       chart-type="discrete"
       :p-frame="app.model.outputs.violinPf"
       :default-options="defaultOptions"
-      :data-state-key="app.model.outputs.violinPf"
     />
   </PlBlockPage>
 </template>

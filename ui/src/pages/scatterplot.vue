@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { PredefinedGraphOption } from "@milaboratories/graph-maker";
 import { GraphMaker } from "@milaboratories/graph-maker";
-import "@milaboratories/graph-maker/styles";
 import { PlBlockPage } from "@platforma-sdk/ui-vue";
 import { computed } from "vue";
 import { useApp } from "../app";
@@ -53,7 +52,7 @@ const key = computed(() => (defaultOptions.value ? JSON.stringify(defaultOptions
   <PlBlockPage>
     <GraphMaker
       :key="key"
-      v-model="app.model.ui.graphStateScatterExpression"
+      v-model="app.model.data.graphStateScatterExpression"
       chart-type="scatterplot-umap"
       :p-frame="app.model.outputs.scatterplotPf"
       :default-options="defaultOptions"

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { PredefinedGraphOption } from "@milaboratories/graph-maker";
 import { GraphMaker } from "@milaboratories/graph-maker";
-import "@milaboratories/graph-maker/styles";
 import { PFrameImpl, type PColumnIdAndSpec } from "@platforma-sdk/model";
 import {
   PlAccordionSection,
@@ -88,13 +87,13 @@ const defaultOptions = computed((): PredefinedGraphOption<"scatterplot-umap">[] 
 const graphState = computed({
   get: () =>
     data.currentTab === "umap"
-      ? app.model.ui.graphStateUMAP
+      ? app.model.data.graphStateUMAP
       : data.currentTab === "tsne"
-        ? app.model.ui.graphStateTSNE
-        : app.model.ui.graphStatePAGA,
+        ? app.model.data.graphStateTSNE
+        : app.model.data.graphStatePAGA,
   set: (value) => {
-    if (data.currentTab === "umap") app.model.ui.graphStateUMAP = value;
-    else app.model.ui.graphStateTSNE = value;
+    if (data.currentTab === "umap") app.model.data.graphStateUMAP = value;
+    else app.model.data.graphStateTSNE = value;
   },
 });
 
@@ -136,7 +135,7 @@ const clusterOptions = useWatchFetch(
 <template>
   <PlBlockPage>
     <GraphMaker
-      :key="`${data.currentTab}-${pFrame}`"
+      :key="`${data.currentTab}-${pFrame.ok ? pFrame.value : ''}`"
       v-model="graphState"
       chartType="scatterplot-umap"
       :p-frame="pFrame"
@@ -151,7 +150,7 @@ const clusterOptions = useWatchFetch(
       </template>
       <template #settingsSlot>
         <PlDropdownRef
-          v-model="app.model.args.clusterAnnotationRef"
+          v-model="app.model.data.clusterAnnotationRef"
           :options="app.model.outputs.clusterAnnotationOptions"
           :style="{ width: '320px' }"
           label="Cluster annotation"
@@ -160,7 +159,7 @@ const clusterOptions = useWatchFetch(
         />
         <PlAccordionSection label="Advanced Settings">
           <PlDropdownRef
-            v-model="app.model.args.rootCluster"
+            v-model="app.model.data.rootCluster"
             :options="clusterOptions.value"
             label="Root cluster"
             clearable

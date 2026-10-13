@@ -1,63 +1,44 @@
-import type { GraphMakerState } from "@milaboratories/graph-maker";
-import type { InferOutputsType, PColumnIdAndSpec, PFrameHandle, PlRef } from "@platforma-sdk/model";
-import { BlockModel, createPFrameForGraphs, isPColumn, isPColumnSpec } from "@platforma-sdk/model";
+import { kind } from "@platforma-open/milaboratories.pseudotime-inference.kind";
+import type {
+  InferOutputsType,
+  PColumnIdAndSpec,
+  PFrameHandle,
+  TreeNodeAccessor,
+} from "@platforma-sdk/model";
+import {
+  BlockModelV3,
+  createPFrameForGraphs,
+  isPColumn,
+  isPColumnSpec,
+} from "@platforma-sdk/model";
+import { blockDataModel } from "./dataModel";
+import type { BlockArgs } from "./types";
 
-export type UiState = {
-  graphStateUMAP: GraphMakerState;
-  graphStateTSNE: GraphMakerState;
-  graphStatePAGA: GraphMakerState;
-  graphStateViolin: GraphMakerState;
-  graphStateScatterExpression: GraphMakerState;
-  graphStateScatterDensity: GraphMakerState;
-  anchorColumn?: PlRef;
-};
+export { blockDataModel } from "./dataModel";
+export type { BlockArgs, BlockData, BlockUiState } from "./types";
 
-export type BlockArgs = {
-  clusterAnnotationRef?: PlRef;
-  title?: string;
-  rootCluster?: string;
-};
+export const platforma = BlockModelV3.create({ dataModel: blockDataModel, kind })
 
-export const model = BlockModel.create()
+  // The run gate. Throwing shows the reason in the UI. Same check as the V1
+  // `.argsValid`: a cluster annotation must be selected.
+  .args<BlockArgs>((data): BlockArgs => {
+    if (data.clusterAnnotationRef === undefined) {
+      throw new Error("Select a cluster annotation");
+    }
 
-  .withArgs<BlockArgs>({})
-
-  .argsValid((ctx) => {
-    return ctx.args.clusterAnnotationRef !== undefined;
+    return {
+      clusterAnnotationRef: data.clusterAnnotationRef,
+      title: data.title,
+      rootCluster: data.rootCluster,
+    };
   })
 
-  .withUiState<UiState>({
-    graphStateUMAP: {
-      title: "UMAP",
-      template: "dots",
-      currentTab: "settings",
-    },
-    graphStateTSNE: {
-      title: "tSNE",
-      template: "dots",
-      currentTab: null,
-    },
-    graphStatePAGA: {
-      title: "PAGA graph",
-      template: "dots",
-      currentTab: null,
-    },
-    graphStateViolin: {
-      title: "Cluster Pseudotime",
-      template: "violin",
-      currentTab: null,
-    },
-    graphStateScatterExpression: {
-      title: "Gene Expression",
-      template: "dots",
-      currentTab: null,
-    },
-    graphStateScatterDensity: {
-      title: "Cell Density",
-      template: "dots",
-      currentTab: null,
-    },
-  })
+  // Inverse of the kind's init-params contract: the two settings a user picks
+  // by hand. `title` is left out — nothing in the UI sets it.
+  .templateParams((data) => ({
+    clusterAnnotationRef: data.clusterAnnotationRef,
+    rootCluster: data.rootCluster,
+  }))
 
   .output("clusterAnnotationOptions", (ctx) =>
     ctx.resultPool.getOptions(
@@ -67,32 +48,26 @@ export const model = BlockModel.create()
   )
 
   .output("selectedClusterPf", (ctx) => {
-    if (ctx.args.clusterAnnotationRef === undefined) return undefined;
-    const pCols = ctx.resultPool.getPColumnByRef(ctx.args.clusterAnnotationRef);
+    if (ctx.data.clusterAnnotationRef === undefined) return undefined;
+    const pCols = ctx.resultPool.getPColumnByRef(ctx.data.clusterAnnotationRef);
     if (pCols === undefined) return undefined;
     return ctx.createPFrame([pCols]);
   })
 
   .output("anchorSpec", (ctx) => {
     // return the Reference of the p-column selected as input dataset in Settings
-    if (!ctx.uiState?.anchorColumn) return undefined;
+    if (!ctx.data.anchorColumn) return undefined;
 
     // Get the specs of that selected p-column
-    const anchorColumn = ctx.resultPool.getPColumnByRef(ctx.uiState?.anchorColumn);
-    const anchorSpec = anchorColumn?.spec;
-    if (!anchorSpec) {
-      console.error("Anchor spec is undefined or is not PColumnSpec", anchorSpec);
-      return undefined;
-    }
-
-    return anchorSpec;
+    const anchorColumn = ctx.resultPool.getPColumnByRef(ctx.data.anchorColumn);
+    return anchorColumn?.spec;
   })
 
-  .output("UMAPPf", (ctx): PFrameHandle | undefined => {
+  .outputWithStatus("UMAPPf", (ctx): PFrameHandle | undefined => {
     const pCols = ctx.resultPool
       .getData()
       .entries.map((c) => c.obj)
-      .filter(isPColumn)
+      .filter(isPColumn<TreeNodeAccessor>)
       .filter((col) => {
         return (
           col.spec.name === "pl7.app/rna-seq/umap1" ||
@@ -111,11 +86,11 @@ export const model = BlockModel.create()
     return ctx.createPFrame([...pCols, ...upstream]);
   })
 
-  .output("tSNEPf", (ctx): PFrameHandle | undefined => {
+  .outputWithStatus("tSNEPf", (ctx): PFrameHandle | undefined => {
     const pCols = ctx.resultPool
       .getData()
       .entries.map((c) => c.obj)
-      .filter(isPColumn)
+      .filter(isPColumn<TreeNodeAccessor>)
       .filter((col) => {
         return (
           col.spec.name === "pl7.app/rna-seq/tsne1" ||
@@ -134,7 +109,7 @@ export const model = BlockModel.create()
     return ctx.createPFrame([...pCols, ...upstream]);
   })
 
-  .output("PAGAPf", (ctx): PFrameHandle | undefined => {
+  .outputWithStatus("PAGAPf", (ctx): PFrameHandle | undefined => {
     const pCols = ctx.outputs?.resolve("pagaGraph")?.getPColumns();
 
     // enriching with leiden clusters data
@@ -151,7 +126,7 @@ export const model = BlockModel.create()
     const pCols = ctx.resultPool
       .getData()
       .entries.map((c) => c.obj)
-      .filter(isPColumn)
+      .filter(isPColumn<TreeNodeAccessor>)
       .filter((col) => {
         return (
           col.spec.name.slice(0, -1) === "pl7.app/rna-seq/tsne" ||
@@ -178,7 +153,7 @@ export const model = BlockModel.create()
 
   .output("violinPcols", (ctx) => {
     // Get specifically the clusters pcol selected by user in settings
-    const clusterAnchor = ctx.args.clusterAnnotationRef;
+    const clusterAnchor = ctx.data.clusterAnnotationRef;
     if (clusterAnchor === undefined) return undefined;
     const clusterPcol = ctx.resultPool.getPColumnByRef(clusterAnchor);
     if (clusterPcol === undefined) return undefined;
@@ -198,11 +173,11 @@ export const model = BlockModel.create()
     );
   })
 
-  .output("violinPf", (ctx): PFrameHandle | undefined => {
+  .outputWithStatus("violinPf", (ctx): PFrameHandle | undefined => {
     const pCols = ctx.resultPool
       .getData()
       .entries.map((c) => c.obj)
-      .filter(isPColumn)
+      .filter(isPColumn<TreeNodeAccessor>)
       .filter((col) => {
         return (
           col.spec.name === "pl7.app/rna-seq/leidencluster" || col.spec.name === "pl7.app/metadata"
@@ -219,7 +194,7 @@ export const model = BlockModel.create()
     return ctx.createPFrame([...pCols, ...upstream]);
   })
 
-  .output("scatterplotPf", (ctx): PFrameHandle | undefined => {
+  .outputWithStatus("scatterplotPf", (ctx): PFrameHandle | undefined => {
     // Get pseudotime scores
     const pseudotimeCols = ctx.outputs?.resolve("pseudotimeScores")?.getPColumns();
     const umapDensityCols = ctx.outputs?.resolve("umapDensity")?.getPColumns();
@@ -238,7 +213,7 @@ export const model = BlockModel.create()
     const geneExpressionCols = ctx.resultPool
       .getData()
       .entries.map((c) => c.obj)
-      .filter(isPColumn)
+      .filter(isPColumn<TreeNodeAccessor>)
       .filter((col) => {
         return (
           col.spec.name === "pl7.app/rna-seq/countMatrix" ||
@@ -273,9 +248,9 @@ export const model = BlockModel.create()
   ])
 
   .title((ctx) =>
-    ctx.args.title ? `Pseudotime Inference - ${ctx.args.title}` : "Pseudotime Inference",
+    ctx.data.title ? `Pseudotime Inference - ${ctx.data.title}` : "Pseudotime Inference",
   )
 
   .done();
 
-export type BlockOutputs = InferOutputsType<typeof model>;
+export type BlockOutputs = InferOutputsType<typeof platforma>;
